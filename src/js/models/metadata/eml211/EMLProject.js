@@ -103,7 +103,7 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject",
                             positionName = creator.get("positionName");
 
 						var newPersonnel = new EMLParty({
-							role: "principalInvestigator",
+							roles: ["principalInvestigator"],
 							parentModel: this,
 							type: "personnel",
 							individualName: individualName,

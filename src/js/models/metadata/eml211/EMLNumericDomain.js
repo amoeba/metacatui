@@ -3,10 +3,11 @@ define(["jquery", "underscore", "models/NestedModel",
     function($, _, NestedModel, DataONEObject) {
 
         /**
-         * EMLNumericDomain represents the measurement scale of an interval
+         * @class EMLNumericDomain
+         * @classdesc EMLNumericDomain represents the measurement scale of an interval
          * or ratio measurement scale attribute, and is an extension of
          * EMLMeasurementScale.
-         *
+         * @lends EMLNumericDomain.prototype
          * @see https://github.com/NCEAS/eml/blob/master/eml-attribute.xsd
          */
         var EMLNumericDomain = NestedModel.extend({
@@ -214,7 +215,7 @@ define(["jquery", "underscore", "models/NestedModel",
 
                     // Build a unit element, and populate a standard or custom child
                     unitNode = document.createElement("unit");
-                    
+
                     if ( typeof unit.standardUnit !== "undefined") {
                         unitTypeNode = document.createElement("standardUnit");
                         $(unitTypeNode).text(unit.standardUnit);

@@ -4,14 +4,17 @@ define(['underscore', 'jquery', 'backbone', 'models/DataONEObject',
         'text!templates/dataItem.html'],
     function(_, $, Backbone, DataONEObject, EML, EMLOtherEntity, DataItemTemplate){
 
-        /*
-            A DataItemView represents a single data item in a data package as a single row of
+        /**
+        * @class DataItemView
+        * @classdesc    A DataItemView represents a single data item in a data package as a single row of
             a nested table.  An item may represent a metadata object (as a folder), or a data
             object described by the metadata (as a file).  Every metadata DataItemView has a
             resource map associated with it that describes the relationships between the
             aggregated metadata and data objects.
+        * @constructor
         */
-        var DataItemView = Backbone.View.extend({
+        var DataItemView = Backbone.View.extend(
+          /** @lends DataItemView.prototype */{
 
             tagName: "tr",
 
@@ -360,7 +363,6 @@ define(['underscore', 'jquery', 'backbone', 'models/DataONEObject',
             /**
              * Update the folder name based on the scimeta title
              *
-             * @function updateName
              * @param e The event triggering this method
              */
             updateName: function(e) {
@@ -457,6 +459,14 @@ define(['underscore', 'jquery', 'backbone', 'models/DataONEObject',
                     // Read each file, and make a DataONEObject
                     _.each(fileList, function(file) {
 
+                        var uploadStatus = "l",
+                            errorMessage = "";
+
+                        if( file.size == 0 ){
+                          uploadStatus = "e";
+                          errorMessage = "This is an empty file. It won't be included in the dataset.";
+                        }
+
                         var dataONEObject = new DataONEObject({
                             synced: true,
                             type: "Data",
@@ -464,7 +474,8 @@ define(['underscore', 'jquery', 'backbone', 'models/DataONEObject',
                             size: file.size,
                             mediaType: file.type,
                             uploadFile: file,
-                            uploadStatus: "l",
+                            uploadStatus: uploadStatus,
+                            errorMessage: errorMessage,
                             isDocumentedBy: [this.parentSciMeta.id],
                             resourceMap: [this.collection.packageModel.id]
                         });
@@ -720,7 +731,6 @@ define(['underscore', 'jquery', 'backbone', 'models/DataONEObject',
              * Clears the text in the cell if the text was the default. We add
              * an 'empty' class, and remove it when the user focuses back out.
              *
-             * @function emptyName
              */
             emptyName: function(e){
 

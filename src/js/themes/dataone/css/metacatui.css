@@ -37,14 +37,6 @@
 		font-weight: 600;
 	}
 
-    /*.bold-header{
-    	background-color: #333;
-    	color: #DDD;
-    	font: 400 20px/30px "Oswald", Arial, sans-serif;
-    	text-transform: uppercase;
-    	text-shadow: none;
-    }*/
-
     .pointer{
     	cursor: pointer;
     }
@@ -200,6 +192,20 @@
 		word-wrap: break-word;
 	}
 
+/* Portal editor
+-------------------------------------------------- */
+
+/* Theme specific colours for the add section 'button' images */
+
+.port-editor-section svg .theme-primary-fill{
+	fill: #660033
+}
+.port-editor-section svg .theme-secondary-fill{
+	fill: #1C6E84
+}
+.port-editor-section svg .theme-accent-fill{
+	fill: #91285f
+},
 
 /* FORM/INPUT CUSTOMIZATIONS
 -------------------------------------------------- */
@@ -852,6 +858,10 @@ label.control-label{
 	border: 1px solid #1C6E84;
   	border-radius: 5px;
 }
+/* The active attribute in the attribute name list */
+.attributeListTable tr.active{
+  background-color: #1C6E84;
+}
 
    /** Prov charts **/
   .prov-chart,
@@ -962,6 +972,20 @@ label.control-label{
 	pointer-events: none;
 
 }
+.controls-well.annotations-container{
+  box-shadow: none;
+  border: 0px;
+}
+.annotation .annotation-value{
+background-color: #1C6E84;
+border-color: #1C6E84;
+}
+.annotation-icon .icon.icon-stack-base{
+color: #1C6E84;
+}
+.attributeListTable .active .annotation-icon .icon.icon-stack-base{
+  color: #0ca3cc;
+}
 
 /* Registry CSS
 -------------------------------------------------- */
@@ -1035,30 +1059,6 @@ label.control-label{
   /* SIDEBAR CSS
   -------------------------------------------------- */
 
-    .subset-choice{
-    background-color: rgba(23, 97, 146, 0.46);
-	color: white;
-	font-size: 20px;
-	font-family: "Oswald";
-	padding: 2px 0px 0px 30%;
-	position: relative;
-	border-radius: 4px;
-	-moz-border-radius: 4px;
-	-webkit-border-radius: 4px;
-	}
-
-	.subset-choice:hover,
-	.subset-choice:hover > i{
-		color: #1C6E84;
-	}
-
-	.subset-choice > i{
-		position:absolute;
-		right: 0;
-		margin-right: 10px;
-		top: 20%;
-	}
-
     /***Filters ***/
 
     /*-- Search buttons next to text inputs --*/
@@ -1089,9 +1089,6 @@ label.control-label{
     	-moz-border-top-right-radius: 0px;
 		-moz-border-bottom-right-radius: 0px;
     	margin-left: 10px;
-    	-moz-box-shadow: inset 0 0 10px -1px #CCC;
-		-webkit-box-shadow: inset 0 0 10px -1px #CCC;
-		box-shadow: inset 0 0 10px -1px #CCC;
 		color: #555;
     }
 
@@ -1473,10 +1470,6 @@ label.control-label{
     .info-icons .on-map > i{
     	font-size: 19px;
     }
-    .info-icons .icon{
-    	color: #6E3F57;
-    	cursor: pointer;
-    }
     .info-icons .icon:hover{
     	color: #CE0060;
     }
@@ -1493,6 +1486,10 @@ label.control-label{
 
     .result-row:hover .info-icons .inactive{
     	color: #B2CADD;
+    }
+
+    .info-icons .icon.icon-code-fork {
+      font-size: 1.3em;
     }
 
     .popover{
@@ -1861,7 +1858,6 @@ svg .point{
 }
 .line-chart-label.bg{
 	stroke-width: 2px;
-	fill: #FFF;
 	stroke: #FFF;
 	opacity: 0.8;
 }
@@ -2474,13 +2470,17 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
 * Metric Modal Chart (Views, Downloads, Citations)
 ********************************************/
 
-#metric-modal .metric-chart path.line {
+#metric-modal .metric-chart .scale_button:hover rect,
+#metric-modal .metric-chart .bar,
+#metric-modal .metric-chart .bar_context {
+	fill: #1C6E84;
+}
+
+#metric-modal .metric-chart .bar {
 	stroke: #1C6E84;
 }
 
-#metric-modal .metric-chart path.area {
-	fill: #1C6E84;
-}
+
 
 .metrics .metric-value.badge{
   background-color: #1C6E84;

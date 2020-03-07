@@ -48,7 +48,6 @@
 
     a:hover{
     	text-decoration:none;
-    	color: #660000;
     }
 
     h1 > a[name], h2 > a[name], h3 > a[name],
@@ -68,10 +67,6 @@
     h4{
     	font-size: 20px;
     	font-weight: 400;
-    }
-
-    h2{
-    	font-weight: 300;
     }
 
     h1{
@@ -172,6 +167,78 @@
       margin: 35px auto auto auto;
     }
 
+/*
+* Portal View
+*/
+.portal-view .toc-ul a{
+  font-weight: lighter;
+}
+
+/* Portal & Editor (minimal header common to both views)
+-------------------------------------------------- */
+#Navbar .navbar-inner:before, .navbar-inner:after {
+	display: none;
+}
+
+.Portal.Editor #HeaderContainer,
+.PortalView #HeaderContainer{
+  display: none !important;
+}
+
+.Portal.Editor #Navbar .brand,
+.PortalView #Navbar .brand {
+    color: #992222;
+    float: none;
+    margin: 0px;
+    display: inline;
+    text-shadow: none;
+    padding: 0px;
+    margin-left: 2px;
+		font-size: 20px;
+		letter-spacing: 0;
+}
+
+.PortalView .navbar .nav {
+	align-items: center;
+}
+
+.Portal.Editor #Navbar .brand::before,
+.PortalView #Navbar .brand::before {
+  content: "Hosted by the ";
+	color: #555555;
+	font-family: "Helvetica Nueue", "Helvetica", "Arial", "Lato", "sans serif";
+	font-size: 14px;
+}
+
+.Portal.Editor #Navbar .nav .minimal-nav a:hover,
+.PortalView #Navbar .nav .minimal-nav a:hover {
+    background-color: transparent;
+}
+
+.PortalView #Navbar .nav .minimal-nav .btn-primary{
+  color: #FFF;
+}
+.PortalView #Navbar .nav .minimal-nav .btn-primary:hover{
+  background-color: #0093DD;
+  color: #FFF;
+}
+.PortalView #Navbar #editPortal{
+  padding: 5px;
+}
+/* Portal editor
+-------------------------------------------------- */
+
+/* Theme specific colours for the add section 'button' images */
+
+.port-editor-section svg .theme-primary-fill{
+	fill: #006699
+}
+.port-editor-section svg .theme-secondary-fill{
+	fill: #1981cc
+}
+.port-editor-section svg .theme-accent-fill{
+	fill: #b90004
+}
 
 /* Editor
 -------------------------------------------------- */
@@ -311,6 +378,14 @@
       padding: 0px 15px 0px 15px;
     }
 
+		footer #FooterContent {
+	    display: flex;
+	    flex-direction: row;
+	    justify-content: left;
+	    align-items: center;
+	    flex-wrap: wrap;
+		}
+
     footer div.help-items{
     	min-width: 179px;
     }
@@ -374,6 +449,12 @@
       -webkit-transition: opacity .5s;
     }
 
+		footer#Footer .logos {
+			min-width: 320px;
+			justify-content: center;
+    	display: flex;
+		}
+
     footer#Footer .logos img:hover,
     footer#Footer .logos p:hover{
     	opacity: 1;
@@ -419,6 +500,9 @@
       font-weight: 400;
       background-image: none;
       background-repeat: none;
+      text-shadow: none;
+      box-shadow: none;
+      border-color: #CCC;
     }
 
     .btn-primary a, .btn-info a, .btn-success a, .btn-warning a, .btn-danger a, .btn-inverse a {
@@ -428,6 +512,7 @@
 
     .btn-primary {
        background-color: #007DBB;
+      border-color: #0070a8;
 	  color: #FFFFFF;
 	  background-image: none;
 	  box-shadow: none;
@@ -796,12 +881,28 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
       margin-bottom: 15px;
     }
 
-    .navbar-inner {
+    .navbar .navbar-inner {
       border: none;
       z-index: 220;
+			display: flex;
+	    flex-direction: row;
+	    flex-wrap: nowrap;
+	    align-items: center;
+	    justify-content: space-between;
     }
 
-    .navbar .nav > li > a.brand {
+		#nav-trigger{
+	   	margin-top: .5em;
+	   	margin-right: .5em;
+	   	font-size: 2em;
+	   	float: right;
+		}
+
+		.navbar nav{
+			display: none;
+		}
+
+    .navbar a.brand {
       font-size: 48px;
       font-weight: 300;
       font-family: "Lato", Helvetica, sans-serif;
@@ -809,21 +910,22 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
       letter-spacing: -3px;
       padding: 10px 10px 10px 0px;
       text-transform: none;
+			margin: 0;
     }
 
     .navbar .nav > li > * {
       margin: 0px 5px 7px 5px;
     }
 
-    .navbar .nav > li > a {
+    .navbar-inner .nav > li > a {
       color: #555555;
       font-size: 18px;
       font-weight: 400;
       text-transform: uppercase;
     }
 
-    .navbar .nav > li > a:focus,
-    .navbar .nav > li > a:hover {
+    .navbar-inner .nav > li > a:focus,
+    .navbar-inner .nav > li > a:hover {
       color: #555555;
       font-weight: 400;
       background-color: #E5E5E5;
@@ -834,9 +936,9 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
       /*background-color: transparent;*/
     }
 
-    .navbar .nav > .active > a,
-    .navbar .nav > .active > a:hover,
-    .navbar .nav > .active > a:focus {
+    .navbar .nav > li.active > a,
+    .navbar .nav > li.active > a:hover,
+    .navbar .nav > li.active > a:focus {
       color: #555555;
       font-weight: 400;
       text-decoration: none;
@@ -849,8 +951,14 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
               box-shadow: none; /*inset 0 3px 8px rgba(0, 0, 0, 0.125);*/
     }
 
-    .navbar .nav > li > a.brand:focus,
-    .navbar .nav > li > a.brand:hover {
+		.navbar .nav li > .user{
+    	font-size: 15px;
+    	text-transform: capitalize;
+			white-space: nowrap;
+    }
+
+    .navbar a.brand:focus,
+    .navbar a.brand:hover {
     	color: #992222;
     	background-color: transparent;
     }
@@ -870,13 +978,11 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
       margin: 0px 0px 0px 0px;
       padding: 0px 0px 0px 0px;
     }
-    .navbar .nav > li > .user{
-    	font-size: 15px;
-    	text-transform: capitalize;
-    }
 
     .navbar .nav {
       margin-top: 8px;
+			display: flex;
+    	flex-wrap: nowrap;
     }
 
     #Content > .nav-tabs{
@@ -1071,13 +1177,6 @@ img[src*="gstatic.com/"], img[src*="googleapis.com/"]  {
     .main-body-padded {
       padding-top: 90px;
     }
-
-	.subset-choice.keyword-search-link {
-		background-color: #115E95;
-		color: white;
-		text-shadow: none;
-		margin-bottom: 10px;
-	}
 
 	.keyword-search-link.active{
 		background-color: #1981CC;
@@ -1306,7 +1405,6 @@ svg .domain{
 }
 .line-chart-label.bg{
 	stroke-width: 2px;
-	fill: #FFF;
 	stroke: #FFF;
 	opacity: 0.8;
 }
@@ -1490,9 +1588,8 @@ svg .no-activity,
     }
 
     /* Resource map contents table */
-    .table tr > th{
-    	background-color: #DEDEDE;
-    	font-weight: bold;
+    .download-contents th{
+      font-weight: bold;
     }
     .table .table-header{
     	background-color: #7F9FAF;
@@ -1660,9 +1757,6 @@ svg .no-activity,
     }
 
     /* Filter checkboxes */
-    input.filter[type="checkbox"]{
-    	display: none;
-    }
 
    .filter-contain .checkbox-list{
     	margin-left: 0px;
@@ -1894,42 +1988,6 @@ svg .no-activity,
    		float: left;
    }
 
-         /* Autocomplete */
-    ul.ui-autocomplete{
-    	width: 246px;
-    	background-color: #FFFFFF;
-    	border: 1px solid #999999;
-    	padding: 10px;
-    	list-style: none;
-    	overflow-y: scroll;
-    	-webkit-transform: translate3d(0,0,0);
-    	max-height: 150px;
-    	z-index: 100;
-    }
-
-    li.ui-menu-item{
-    	width: 100%;
-    	overflow: hidden;
-    	white-space: nowrap;
-    	text-overflow: ellipsis;
-    	background-color:#FFFFFF;
-    }
-
-    li.ui-menu-item > a{
-    	color: #555555;
-    	width: 100%;
-    }
-
-    li.ui-menu-item > a:hover,
-    .ui-state-focus
-     {
-        color: #006699;
-    	cursor: pointer;
-    	text-decoration: none;
-    	font-weight: bold;
-	}
-
-
 /* RESULTS CSS
 -------------------------------------------------- */
 	#results-container{
@@ -2016,6 +2074,9 @@ svg .no-activity,
  	   color: #1C6E84;
  	   transition: color .3s;
 	}
+  .result-row .info-icons{
+    margin-top:10px;
+  }
 
     /*-- Popovers --*/
     .popover{
@@ -2073,13 +2134,17 @@ svg .no-activity,
     	cursor: default;
     }
 	.pagination ul > li.active > a{
-		background-color: #006699;
-		color: white;
+		background-color: #eee;
 	}
-	.pagination ul > li > a:hover{
-		color: #FFF;
-		background-color: #00AAFF;
+	.pagination ul>li>a{
+		color: inherit;
 	}
+
+/*-------------- ANNOTATION CSS -----------------------------*/
+.controls-well.annotations-container{
+  box-shadow: none;
+  border: 0px;
+}
 
 /*-------------- DOCUMENTATION CSS -----------------------------*/
 /* ---------------------------------------------------- */
@@ -3028,30 +3093,16 @@ a {
     width: 138px;
 }
 
-.edit-toolbar >
-#metadata-controls-container >
-.metadata-controls-container {
-    margin-right: -45px;
-}
-
-.edit-toolbar >
-#owner-controls-container >
-.authority-controls {
-    width: auto;
-    height: 38px;
-    margin-top: -38px;
-    margin-right: -20px;
-    margin-left: 375px;
-}
-
 /******************************************
 * Metric Modal Chart (Views, Downloads, Citations)
 ********************************************/
 
-#metric-modal .metric-chart path.line {
-   stroke: #006699;
+#metric-modal .metric-chart .scale_button:hover rect,
+#metric-modal .metric-chart .bar,
+#metric-modal .metric-chart .bar_context {
+	fill: #006699;
 }
 
-#metric-modal .metric-chart path.area {
-   fill: #006699;
+#metric-modal .metric-chart .bar {
+	stroke: #006699;
 }

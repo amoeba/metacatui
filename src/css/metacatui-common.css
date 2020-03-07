@@ -32,7 +32,7 @@ a:hover{
 }
 .danger,
 .error{
-	color: #960303;
+	color: #dc0000;
 }
 .tooltip-error .tooltip-inner{
 	background-color: #960303;
@@ -90,6 +90,9 @@ a:hover{
 }
 .row-striped > .row-fluid:nth-child(even){
 	background-color: #EFEFEF;
+}
+td.center{
+  text-align: center;
 }
 /******************************************
 ** General Structure ***
@@ -206,12 +209,12 @@ footer{
 .nav .right .dropdown-menu {
   left: -50%;
 }
-
 /******************************************
 ** Titles ***
 ******************************************/
 h3{
 	font-size: 1.5em;
+  font-weight: normal;
 }
 header .citation {
     margin-bottom: 20px;
@@ -229,7 +232,7 @@ header .citation {
   margin-top: 20px;
   clear: both;
 }
-.inline-buttons > .btn{
+.inline-buttons > .btn:not(:last-child){
 	margin-right: 10px;
 }
 .inline-buttons > .text-btwn-btns{
@@ -283,7 +286,10 @@ header .citation {
 .downloading.icon-spin.hidden{
 	display: none;
 }
-
+.download.btn.error {
+  border-color: #960303;
+  color: #960303;
+}
 /******************************************
 ** Notifications and Alerts ***
 ******************************************/
@@ -326,6 +332,7 @@ header .citation {
 }
 .alert h4{
 	margin-top: 10px;
+  margin-bottom: 20px;
 }
 .alert .icon-left{
 	float: left;
@@ -338,9 +345,9 @@ header .citation {
 }
 .alert .close{
 	font-size: 3em;
-    position: absolute;
-    left: 97%;
-    top: 20px;
+  position: absolute;
+  right: 20px;
+  top: 20px;
 }
 .alert-error .close{
 	color: #FF0000;
@@ -425,18 +432,25 @@ img.icon{
 	font-weight: bold;
 	font-size: .9em;
 }
+.private.icon-stack .icon-circle{
+  color: #FF7600;
+}
+.private.icon-stack .icon-stack-top{
+  color: #FFF;
+  margin-top: -1px;
+  font-size: 1.1em;
+}
+.icon.hidden{
+  display: none;
+}
 /******************************************
 ** Results and Result Rows ***
 ******************************************/
 .result-row{
-	padding: 5px;
-	padding-left: 10px;
+	padding: 10px 20px;
 	 width: 95%;
 	 width: calc(100% - 15px);
 	 border-top: 1px solid #EEE;
-}
-.result-row .info-icons{
-	margin-top: 10px;
 }
 .result-row .info-icons .icons{
 	float: left;
@@ -459,8 +473,9 @@ img.icon{
 .result-row .info-icons .icons.download .tooltip{
 	width: 120px;
 }
-.result-row .info-icons .icon{
-	cursor: default;
+.info-icons .download.disabled-download {
+  color: inherit;
+  cursor: default;
 }
 .result-row .info-icons .icon.views{
   margin-left: 5px;
@@ -473,7 +488,6 @@ img.icon{
 	height: 1em;
 }
 .info-icons .icon.private{
-	font-size: 1.5em;
 	color: #FF7600;
 }
 .result-row .info-icons .label{
@@ -530,6 +544,13 @@ img.icon{
 .result-row .download-icon-placeholder{
 	width: 16px;
 	display: inline-block;
+}
+.result-row.collection .info-icons{
+  display: none;
+}
+.result-row.collection .logo{
+  width: auto;
+  max-width: 100px;
 }
 /******************************************
 ** Provenance flow-charts ***
@@ -1503,16 +1524,22 @@ img.icon{
 }
 .metadata-view .controls-container{
 	margin-bottom: 20px;
+	padding: 10px;
 }
 .metadata-view .controls-container > .controls{
-	display: inline;
-	float: left;
-	margin-right: 20px;
+	display: inline-block;
+	float: right;
+	margin-top: 0px;
+	margin-bottom: 0px;
 }
 .metadata-view .controls-container > .controls .inline-buttons{
 	margin-top: 0px;
 	margin-bottom: 0px;
 
+}
+.controls-well.annotations-container{
+  box-shadow: none;
+  border: 0px;
 }
 body > .alert-container {
     position: fixed;
@@ -1548,25 +1575,41 @@ body > .alert-container {
 #Content.no-stylesheet > .breadcrumb~.citation{
 	margin-top: 20px;
 }
-
+/* Padding at the bottom to avoid scrollbar overlap */
+#attributeTabs{
+  padding-bottom: 25px;
+}
 .attributeList > .row-fluid > .span2 {
-  min-width: 130px;
-  max-width: 150px;
-  max-width: calc(165px - 2.127659574468085%);
   max-height: 700px;
-  overflow-y: scroll;
+  overflow: scroll;
+  width: 25%;
 }
-.tab-content,
-.row-fluid .tab-content.span10{
-	width: 76%;
-	width: calc(100% - 165px);
+.attributeList > .row-fluid > .span10{
+  width: 72%;
 }
-.attributeList a{
-	text-overflow: ellipsis;
-	overflow: hidden;
+.attributeListTable tr td:last-child a{
 	white-space: nowrap;
 	max-width: 100%;
+  font-weight: 600;
+  font-size: .9em;
 }
+.attributeListTable {
+	table-layout: fixed;
+	width: 100%;
+}
+
+/* Make the icon column 16px wide */
+.attributeListTable tr td:first-child {
+	width: 19px;
+}
+/* The active attribute in the attribute name list */
+.attributeListTable tr.active{
+  background-color: #166194;
+}
+.attributeListTable tr.active a{
+  color: #FFF;
+}
+
 .controls-well > .party{
 	margin-bottom: 30px;
 	border-bottom: 1px solid #DDD;
@@ -1592,6 +1635,36 @@ body > .alert-container {
 .taxonomicCoverage .controls {
 	margin-left: 0px;
 }
+
+/* ---- Analyze Button ---- */
+div.dropdown.btn.btn-secondary.dropdown-toggle .icon-bar-chart
+{
+	margin-right: 10px;
+}
+#metadata-controls-container > div.controls.btn-toolbar > div > button > span.analyze-text {
+	margin-right:10px;
+	font-weight: 600;
+}
+div.analyze.dropdown{
+	display: inline-block;
+}
+div.analyze.dropdown.open button.dropdown.btn.btn-secondary.dropdown-toggle{
+	display: inline-block;
+	color:white;
+	text-shadow: 0;
+	background-color: #1C6E84;
+	border-width: 0px;
+}
+.controls.btn-toolbar{
+	font-size: 1em;
+}
+.analyze.dropdown-menu {
+	border: none;
+	border-radius: 4px;
+	padding: 0px;
+	margin: 0px;
+}
+
 /**----------------------------------------**/
 .metadata-view .citation{
 	margin-bottom: 20px;
@@ -1605,12 +1678,29 @@ body > .alert-container {
   float: right;
   margin-bottom: 10px;
 }
-.metadata-controls-container .info-icons{
+.controls-container .info-icons{
 	display: inline-block;
-	padding-left: 20px;
-	font-size: 1.2em;
-	top: 5px;
-    position: relative;
+	margin-left: 10px;
+	margin-right: 20px;
+	vertical-align: top;
+	position: relative;
+	font-size: 30px;
+}
+.controls-container .info-icons .icon-stack{
+	width: 1.25em;
+  height: 1.25em;
+  vertical-align: top;
+}
+.controls-container .info-icons .icon-stack .icon {
+	margin-top: -15px;
+}
+.controls-container .info-icons .icon-stack .icon-stack-top{
+	color: #FFF;
+	font-size: .75em;
+	margin-top: -15px;
+}
+.controls-container .info-icons .icon-stack .icon-stack-base{
+	font-size: 1.25em;
 }
 .metadata-controls-container{
 	position: relative;
@@ -1640,20 +1730,21 @@ body > .alert-container {
 /******************************************
 * Metrics Controller Styling
 ********************************************/
-/* Style for the metric button */
-
-
-
+.metrics-container{
+	display: inline-block;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
 
 /***********
 Defult button styling for Metrics views
 ***********/
 a.btn.metrics {
-    display: inline-block;
     width: 164px;
-    padding-right: 0px;
-    margin-top: -14px;
-    margin-left: -5px;
+		margin-bottom: 0px;
+}
+.metric-value > .icon.metric-icon {
+    font-size:  18px;
 }
 .metric-value.badge {
     float: right;
@@ -1696,60 +1787,22 @@ i.icon.metric-icon.icon-spinner.icon-spin {
     float: left;
     width: auto;
 }
-.edit-toolbar {
+.controls-container .controls {
     border-left: 1px solid #E3E3E3;
     float: right;
-    margin-top: -15px;
-    width: auto;
-    height: 50px;
-
+		padding-left: 10px;
 }
-
-.edit-toolbar >
-#metadata-controls-container >
-.metadata-controls-container {
-    margin-left: 15px;
-    margin-top: 10px;
-    margin-right: -10px;
-    width: auto;
-    height: 38px;
-    display: inline-block;
-    position: relative;
+.controls .btn{
+	margin-bottom: 0px;
 }
-
-.edit-toolbar >
-#owner-controls-container >
-.authority-controls {
-    width: auto;
-    height: 38px;
-    margin-top: -38px;
-    margin-right: -20px;
-    margin-left: 170px;
-}
-
-.edit-toolbar >
-#owner-controls-container >
-.authority-controls >
-#editMetadata {
-    margin-right: 15px;
-}
-
-/* .edit-toolbar >
-#metadata-controls-container.controls >
-.metadata-controls-container >
-.copy-success{
-	position: absolute;
-    top: -24px;
-    left: 17px;
-    font-size: .9em;
-} */
-
-
 /* Making the publish button consistent size as the downloads all*/
-.edit-toolbar >
-#owner-controls-container >
-.authority-controls >
-#publish {
+#owner-controls-container > .btn {
+    margin-right: 10px;
+}
+#owner-controls-container > .btn[disabled]{
+  cursor: not-allowed;
+}
+.edit-toolbar > #owner-controls-container #publish {
     width: 138px;
 }
 
@@ -1820,28 +1873,42 @@ i.icon.metric-icon.icon-spinner.icon-spin {
 	padding-top: 22px;
 }
 
+
 /******************************************
-* Metric Modal Chart (Views, Downloads, Citations)
-********************************************/
-
-/* When there is no data ...*/
-
-.empty-citation-list {
-    background-color: #f5f5f5;
-    width: 850px;
-    height: 150px;
-    margin: 25px 40px 25px 40px;
-    border-radius: 6px;
+* Search Page / Data Catalog Page Metrics
+******************************************/
+.catalog-metrics{
+  float: right;
+  margin-right: 0px;
 }
-.empty-citation-list-text {
-    font-size: 18px;
-    font-weight: 100;
-    color:  #d0d0d0;
-    text-align: center;
-    vertical-align: middle;
-    line-height: 150px;
-
+.catalog-metrics .badge {
+	background-color: #dedede;
+	color: #666;
+  min-width: 47px;
+  text-align: center;
 }
+i.catalog-metric-icon {
+	margin-right: 3px;
+}
+
+/**********************************************************
+*	  Metric Modal Chart (Views, Downloads, Citations)	  *
+***********************************************************/
+
+
+/*
+============ GENERAL CHART TEXT STYLE ===========		[metric modal chart]
+*/
+
+#metric-modal .metric-chart text {
+	fill: #565656;
+	font-size: 9px;
+	font-family: Helvetica, Arial, "sans serif";
+}
+
+/*
+============ WHEN THERE IS NO DATA: ===========		[metric modal chart]
+*/
 
 #metric-modal .metric-chart text.no-data {
 	font-size: 16px;
@@ -1853,73 +1920,80 @@ i.icon.metric-icon.icon-spinner.icon-spin {
 	fill: #f5f5f5;
 }
 
-#metric-modal .metric-chart text {
-	fill: #565656;
-	font-size: 9px;
-	font-family: Helvetica, Arial, "sans serif";
-}
+/*
+	============ WHEN THERE IS DATA: ===========		[metric modal chart]
+*/
 
-#metric-modal .metric-chart rect.plot-background{
-	fill: white;
-}
+/*
+	--- AXES ---		[metric modal chart]
+*/
 
-#metric-modal .metric-chart path.line {
-	fill: none;
-	stroke: black; /* default, changed in each theme */
-	stroke-width: 1.5px;
-	clip-path: url(#clip);
-}
+/* --- x axis focus --- */
 
-#metric-modal .metric-chart path.area {
-	fill: black; /* default, changed in each theme */
-	opacity: 0.6;
-	clip-path: url(#clip);
-}
-
-#metric-modal .metric-chart .axis {
+#metric-modal .metric-chart .focus .axis {
 	shape-rendering: crispEdges;
 }
 
-#metric-modal .metric-chart .x.axis .domain{
-	display:none;
+#metric-modal .metric-chart .focus .x.axis {
+	clip-path: url(#clip);
 }
 
-#metric-modal .metric-chart .x.axis line {
-	stroke: white;
-	opacity: 0.4;
+#metric-modal .metric-chart .focus .x.axis line {
+	display: none;
 }
+
+#metric-modal .metric-chart .focus .x.axis .tick:hover {
+	cursor: default;
+}
+
+
+/* --- x axis context --- */
 
 #metric-modal .metric-chart .context .x.axis line {
 	display: none;
 }
 
-#metric-modal .metric-chart .y.axis .domain{
+#metric-modal .metric-chart .context .x.axis {
+	clip-path: url(#clip);
+}
+
+#metric-modal .metric-chart .context .x.axis .domain {
+	display:none;
+}
+
+/* --- focus y-axis --- */
+
+#metric-modal .metric-chart .focus .y.axis .domain {
 	display: none;
 }
 
-#metric-modal .metric-chart .y.axis.title{
+#metric-modal .metric-chart .y.axis.title {
 	font-size: 13px;
 	font-weight: 100;
 }
 
+/* horizontal focus gridlines */
 #metric-modal .metric-chart .y.axis line {
 	stroke: #565656;
 	stroke-dasharray: 2,2;
 	stroke-opacity: 0.3;
 }
 
+/*
+	--- BRUSH ---		[metric modal chart]
+*/
+
+/* --- brush window --- */
+
 #metric-modal .metric-chart .brush .extent {
   fill-opacity: .07;
   shape-rendering: crispEdges;
   clip-path: url(#clip);
+  fill: #70706c;
 }
 
-#metric-modal .metric-chart rect.pane {
-	cursor: move;
-	fill: none;
-	pointer-events: all;
-}
-/* brush handles  */
+/* --- brush handles --- */
+
 #metric-modal .metric-chart .resize .handle {
 	fill: #555;
 }
@@ -1930,21 +2004,94 @@ i.icon.metric-icon.icon-spinner.icon-spin {
     stroke: #555;
 }
 
-#metric-modal .metric-chart .scale_button {
-	cursor: pointer;
-}
+/*
+	--- ZOOM TO BUTTONS ---		[metric modal chart]
+*/
 
 #metric-modal .metric-chart .scale_button rect {
 	fill: #eaeaea;
 }
+
 #metric-modal .metric-chart .scale_button:hover text {
-	fill: #417DD6;
+	fill: white;
 	transition: all 0.1s cubic-bezier(.25,.8,.25,1);
+}
+
+#metric-modal .metric-chart .scale_button:hover rect {
+	fill: grey;	/* change for each theme */
+	transition: all 0.1s cubic-bezier(.25,.8,.25,1);
+}
+
+
+
+/*
+	--- EXPLANATORY TEXT (# views/downloads) ---		[metric modal chart]
+*/
+
+#metric-modal .metric-chart text#totalCount  {
+	font-size: 15px;
+	font-weight: bold;
 }
 
 #metric-modal .metric-chart text#displayDates  {
 	font-weight: bold;
 }
+
+/*
+	--- BARS ---		[metric modal chart]
+*/
+
+
+#metric-modal .metric-chart .bar,
+#metric-modal .metric-chart .bar_context {
+	fill: black;  /* change for each theme */
+	stroke-width: 0;
+	clip-path: url(#clip);
+}
+
+#metric-modal .metric-chart .bar {
+	stroke: black; /* change for each theme */
+	cursor: default;
+}
+
+/* --- context bars --- */
+
+
+/*
+	--- PANE CURSORS ---		[metric modal chart]
+*/
+
+#metric-modal .metric-chart rect.pane {
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grab;
+	fill: #FAFAFA;
+	pointer-events: all;
+}
+
+#metric-modal .metric-chart rect.pane:active {
+	cursor: move; /* fallback if grab cursor is unsupported */
+	cursor: grabbing;
+}
+
+/*
+	--- TOOLTIPS ---		[metric modal chart]
+*/
+
+#metric-modal div.metric_tooltip {
+    position: fixed;
+    text-align: center;
+    height: 25px;
+    padding: 2px;
+    font: 10px sans-serif;
+    background: white;
+	color: #565656;
+    border: 0px;
+    border-radius: 2px;
+    pointer-events: none;
+	box-shadow: 0 0px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+
+}
+/*  ====== END: Metrics modal chart ======  */
 
 .metric-table.table.table-striped.table-condensed {
     width: 930px;
@@ -1977,11 +2124,8 @@ button.modal-btn.btn.btn-default {
 Non-clickable (Disabled) button styling for metrics views
 ***********/
 a.btn.metrics-button-disabled {
-    display: inline-block;
-    width: auto;
-    padding-right: 0px;
-    margin-top: -14px;
-    margin-left: -5px;
+	width: 164px;
+	margin-bottom: 0px;
     color: #555;
     background-color: #F3F3F3;
     cursor: default;
@@ -2032,7 +2176,6 @@ a.btn.metrics-button-disabled {
 .entitydetails table,
 .entitydetails tbody,
 .entitydetails td {
-    display: block;
     word-wrap: break-word;
     box-sizing: border-box;
 }
@@ -2219,6 +2362,15 @@ a.btn.metrics-button-disabled {
 .popover-title {
     text-transform: capitalize;
 }
+
+/* Don't force capitalization on annotation popover titles */
+.annotation > .popover-title {
+    text-transform: none;
+}
+.annotation {
+	cursor: pointer;
+}
+
 .annotation-viewer-container .concept a{
 	white-space: pre-wrap;
 }
@@ -2227,6 +2379,103 @@ a.btn.metrics-button-disabled {
     color: #DDD;
 }
 
+/* Force hyperlinks in popovers to wrap */
+.annotation .popover .popover-content a {
+	white-space: normal;
+}
+
+/* Annotation pill stuff */
+.annotations-container {
+  display: flex;
+  flex-wrap: wrap;
+  box-shadow: none;
+  border: 0px;
+}
+
+.annotation {
+  display: flex;
+  margin: 0 6px 6px 0;
+}
+
+/** Annotation icon **/
+.annotation-icon{
+  display: inline-block;
+  height: 1em;
+  line-height: 1em;
+  font-size: .9em;
+}
+.attributeListTable .annotation-icon{
+  width: .6em;
+  line-height: .9em;
+  margin-left: -5px;
+  font-size: 2.5em;
+}
+.attributeListTable .annotation-icon .icon{
+  font-size: .5em;
+}
+.attributeListTable .annotation-icon .icon-ok{
+  font-size: .25em;
+}
+.annotation-icon .icon{
+  color: #FFF;
+}
+.annotation-icon .icon.icon-stack-base{
+  color: #337ab7;
+}
+.icons.annotations .icon-stack {
+	vertical-align: -15%;
+}
+.icons.annotations .icon.icon-stack-base {
+	font-size: 1.25em;
+}
+.icons.annotations .icon.icon-ok {
+	font-size: 0.65em;
+}
+/** Annotation pills **/
+.annotation .annotation-property,
+.annotation .annotation-value,
+.annotation .annotation-findmore {
+  padding: 3px 6px;
+}
+
+.annotation .annotation-property {
+  background-color: #EEE;
+  border-width: 1px 0 1px 1px;
+  border-style: solid;
+  border-color: #CCC;
+	border-radius: 3px 0px 0px 3px;
+}
+
+.annotation .annotation-value {
+  background-color: #337ab7;
+  border-width: 1px 0px 1px 0px;
+  border-style: solid;
+  border-color: #337ab7;
+  color: white;
+}
+
+.annotation .annotation-findmore {
+  background-color: #EEE;
+  border-width: 1px 1px 1px 0px;
+  border-style: solid;
+  border-color: #CCC;
+  border-radius: 0px 3px 3px 0px;
+	padding: 0 10px;
+}
+
+.annotation .annotation-findmore div {
+	transform: rotate(45deg);
+	margin: 2px;
+}
+
+ .annotation-popover-definition {
+	padding: 0.5rem 0;
+	margin: 0.5rem 0;
+}
+
+.annotation-popover-definition {
+	border-top: 1px solid #CCC;
+}
 /** Hide the search when in the dropdown menu **/
 .dropdown-menu .ncboAutocomplete {
 	display: none;
@@ -2244,9 +2493,18 @@ a.btn.metrics-button-disabled {
 
 .ncboAutocomplete .ui-menu .ui-menu-item a.ui-state-focus, .ncboAutocomplete .ui-menu .ui-menu-item a.ui-state-hover, .ncboAutocomplete .ui-menu .ui-menu-item a.ui-state-active, .ui-menu-item a {
     text-shadow: none;
-    font-size: 1.3em;
+    font-size: 14px;
     width: 100%;
 }
+
+.ncboAutocomplete .jsonSuggest {
+	overflow-x: scroll;
+}
+
+.ncboAutocomplete > .ui-autocomplete .ui-menu-item {
+	overflow: visible;
+}
+
 /** hide the tree until we have it where we want it **/
 #bioportal-tree {
 	display: none;
@@ -2285,9 +2543,10 @@ a.btn.metrics-button-disabled {
 ********************************************/
 .thumbnail{
 	height: auto;
-	width: 350px;
+	max-width: 100%;
 	padding: 20px;
 	margin-bottom: 20px;
+	box-sizing: border-box;
 }
 .entitydetails .thumbnail{
 	margin-left: 180px;
@@ -2382,6 +2641,1483 @@ img[src*="googleapis.com/"].georegion-map{
   padding-left: 0;
   list-style: none;
 }
+/******************************************
+* EML Party display
+********************************************/
+.eml-party .name{
+  font-weight: bold;
+}
+
+
+
+/******************************************
+* Image Uploader
+********************************************/
+
+/* Image upload error formatting (including validation) */
+.dropzone .dz-error {
+	color: #960303;
+}
+.dropzone.error {
+	border-color: #960303;
+}
+.dropzone.error .dz-message {
+	background-color: rgba(255,0,0,0.1);
+}
+
+.dz-image-preview div.dz-error-message{
+	top: 0;
+	bottom: 0;
+	position: absolute;
+	color: #960303;
+  box-sizing: border-box;
+  padding: 4px;
+  width: 100%;
+	white-space: normal;
+	min-height: 100%;
+	max-height: 100%;
+	display: flex;
+  align-items: center;
+	z-index: 0; 	/* make sure it's below clickable dropzone items */
+	line-height: 100%;
+}
+
+.port-editor-md .dz-image-preview div.dz-error-message {
+    align-items: flex-start;
+    padding-top: 19px;
+    justify-content: center;
+}
+
+.remove-preview .dz-image-preview div.dz-error-message{
+	opacity: 0.2;
+}
+
+/* Image upload drag and drop zone */
+.dropzone {
+ 	background: #f6f6f6;
+ 	border-radius: 3px;
+	cursor: pointer;
+	height:100%;
+	width:100%;
+  text-align: center;
+	position: relative;
+	box-sizing: border-box;
+}
+
+.dropzone .dz-message{
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	align-items: center;
+	box-sizing: border-box;
+	padding: 8px;
+	width: 100%;
+	justify-content: center;
+	z-index: 2; /* make sure it's above .dz-error message because this element must be clickable */
+}
+
+.dz-image-preview {
+	white-space: nowrap;
+	text-align: center;
+	box-sizing: border-box;
+	padding-bottom: 4px; /* to account for a 2px top border and 2px bottom border*/
+}
+
+.vertical-align-image-helper {
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+}
+
+/* when images are displayed as image elements */
+.dz-image-preview img{
+	max-height: 100%;
+}
+
+/* when images are displayed as background of divs */
+.dz-image-preview div{
+	background-repeat: no-repeat;
+	background-position-x: 50%;
+	background-position-y: 50%;
+	background-size: cover;
+	min-height: 296px; /* 300px - 4px for top and bottom border*/
+	color: #FFF;
+}
+
+/* the remove image button */
+.dz-preview i {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	box-sizing: border-box;
+	opacity: 0;
+	font-size: 17px;
+	padding:1px;
+	margin: 2px;
+	color: #ababab;
+	cursor: pointer;
+}
+
+.dropzone:hover i {
+  opacity:0.8;
+}
+
+/* show dashed outline when no image is uploaded, or when image is uploaded and user hovers */
+.dropzone{
+  background-image: url(../img/transp_bg.png);
+}
+.dropzone.dz-started {
+	border-color: #ededed;
+	background: transparent;
+}
+.dropzone.dz-started .dz-message{
+  opacity: 0;
+}
+
+.dropzone,
+.dropzone.dz-started:hover,
+.dropzone.dz-started.dz-drag-hover {
+	border: dashed 2px #999;
+}
+
+.dz-message{
+	transition: all .2s ease;
+}
+
+.dropzone{
+	transition: all .2s ease;
+}
+
+/* Hide help text if image is already uploaded, show when user hovers */
+.dropzone:hover .dz-message,
+.dropzone.dz-started:hover .dz-message,
+.dropzone.dz-drag-hover .dz-message {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #FFF;
+  opacity: 1;
+}
+.portal-display-image .dropzone .dz-message{
+  padding-top: 230px;
+}
+.portal-display-image .image-uploader.remove-preview .image-container{
+  opacity: .3;
+}
+.portal-display-image p.notification.error {
+    text-align: center;
+}
+
+.logos-container .dropzone .icon-upload {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+.dropzone .icon-upload{
+  display: block;
+  font-size: 1.5em;
+}
+/******************************************
+** AccessPolicy editor view ***
+******************************************/
+.access-rule .subject{
+  display: flex;
+  min-height: 30px;
+}
+.access-policy-view-container.modal{
+  width: 80%;
+  max-width: 1000px;
+  left: 10%;
+  margin-left: 0px;
+  display: none;
+}
+.access-policy-control.disabled{
+  cursor: not-allowed;
+}
+.access-policy-view h4{
+  font-size: 1em;
+  font-weight: bold;
+}
+.access-rule td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.access-rule select{
+  width: 100%;
+  min-width: 100px;
+  margin-bottom: 0px;
+}
+.access-rule.new input{
+  width: calc(100% - 16px);
+  margin-bottom: 0px;
+}
+.access-rule.new label{
+  font-size: .9em;
+}
+.access-rule.new select{
+  margin-top: 25px;
+}
+.access-rule .remove.icon{
+  font-size: 2em;
+  color: #CCC;
+}
+.access-rule .remove-rule{
+  width: 2em;
+}
+.access-rule .add.icon{
+  margin-top: 25px;
+  display: block;
+  font-size: 2em;
+  cursor: pointer;
+}
+.access-rule .add.icon:hover{
+  color: #006699;
+}
+.access-rule .ui-autocomplete .ui-menu-item {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.access-policy-view .public-toggle-container{
+  margin-bottom: 20px;
+}
+.access-policy-view .can-toggle{
+  width: 200px;
+}
+.access-policy-view p{
+  margin-bottom: 20px;
+}
+/******************************************
+* Portal Editor
+********************************************/
+
+.Portal.Editor textarea.auto-resize{
+	overflow-y: hidden;
+}
+
+.Portal.Editor #Content{
+  padding-top: 0px;
+	width: 100%;
+	box-sizing: border-box;
+	overflow-y: auto;
+}
+/* Editor navigation (tabs) */
+.section-links-container{
+  margin-bottom: 0px;
+}
+.section-links-toggle-container{
+  padding-left: 40px;
+  padding-right: 40px;
+}
+.port-editor-sections .section-link-container{
+  border-right: 1px solid #CCC;
+}
+.port-editor-sections .section-menu-link:hover ~ .menu,
+.port-editor-sections .section-link-container .menu:hover{
+  display: block;
+	margin-top: 0px;
+	margin-left: -1px;
+	box-shadow: inset 0 5px 7px -6px rgba(0,0,0,0.3);
+	border-top: 1px solid #333;
+}
+.port-editor-sections .portal-section-link{
+  display: inline-block;
+}
+.port-editor-sections .section-link-container .portal-section-link[contenteditable=true]{
+	box-shadow: 0 0 5px #00689d;
+	padding: 5px 10px;
+	margin: 5px 1px 3px 0px;
+	border: 1px solid  #00689d;
+  margin-left: 10px;
+  margin-right: 10px;
+}
+.port-editor-sections .section-link-container .portal-section-link,
+.port-editor-sections .section-link-container.active .portal-section-link,
+.port-editor-sections .section-link-container.active .portal-section-link:hover,
+.port-editor-sections .section-link-container.active .section-menu-link,
+.port-editor-sections .section-link-container.active .section-menu-link:hover{
+  border-color: transparent;
+}
+.port-editor-sections .section-link-container .portal-section-link:hover,
+.port-editor-sections .section-link-container .section-menu-link:hover{
+  background-color: transparent;
+}
+.port-editor-sections .section-link-container .dropdown-menu{
+  width: 100%;
+  padding: 0px;
+}
+.section-link-container.error .portal-section-link{
+  color: #960303;
+}
+
+#portal-section-tabs .section-link-container .dropdown-menu>li>a.remove-section.disabled{
+	background: #f9f9f9;
+	color: #c4c4c4;
+}
+
+/* 'Add new section' icon  */
+.port-editor-sections .icon.icon-plus {
+	margin: 0 1px 0 1px;
+}
+/* `Settings` link */
+.nav .page-Settings{
+  float: right;
+}
+/* The Delete confirmation popover */
+.section-link-container .popover{
+  min-width: 300px;
+}
+.section-link-container .popover .inline-buttons{
+  margin-bottom: 0px;
+}
+.section-link-container .popover .inline-buttons .btn{
+  width: calc(50% - 5px);
+}
+.section-link-container .popover-title{
+  color: #960303;
+}
+
+/* Portal editor sections */
+.port-editor-section{
+  padding: 20px 40px;
+}
+.port-editor-section.port-editor-md{
+  padding: 0px;
+}
+
+/* Portal Editor notifications */
+.portal-editor .alert:empty {
+    display: none;
+}
+
+/* Portal Editor header (contains logo and title) */
+
+.portal-editor #editor-header {
+	display: flex;
+	padding-bottom: 20px;
+	flex-wrap: wrap;
+  width: 100%;
+	align-items: center;
+}
+
+.logo-editor-container {
+    margin-right: 20px;
+}
+.logo-editor-container .dropzone .dz-message{
+  font-size: .9em;
+}
+
+.logo-editor-container p.notification.error {
+    width: 100px;
+    text-align: center;
+    line-height: 102%;
+    padding-top: 5px;
+    font-size: 0.9em;
+}
+.logo-editor-container p.notification.error:empty{
+  display: none;
+}
+.portal-editor .logo-editor-container > h5,
+.portal-editor .title-container > h5{
+  margin-top: 0px;
+}
+.portal-editor .title-container {
+  flex-grow: 2;
+}
+.portal-editor textarea.portal-title{
+	width: 100%;
+  padding: 0px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid #ccc;
+  box-shadow: none;
+	align-self: center;
+	font-size: 28px;
+	line-height: 40px;
+	min-height: 40px;
+  margin-top: 20px;
+}
+
+.portal-editor textarea.portal-title:focus{
+  padding-left: 10px;
+  -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(82,168,236,.6);
+  -moz-box-shadow: inset 0 1px 1px rgba(0,0,0,.075),0 0 8px rgba(82,168,236,.6);
+  box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(82,168,236,.6);
+}
+/* Portal Editor settings */
+
+/* The width of each input element next to the remove button */
+.port-editor-settings-container textarea{
+	width: calc(100% - 20px - 1em);
+}
+
+.port-editor-logos {
+	display: flex;
+	width: 100%;
+	overflow-x: auto;
+}
+.edit-image .toggle-remove-preview{
+  display: none;
+}
+.edit-image.remove-preview{
+  opacity: .5;
+}
+.edit-image .dropzone .remove-message{
+  display: none;
+}
+.image-uploader.remove-preview{
+  opacity: 1;
+}
+.image-uploader.remove-preview .dz-image-preview img{
+  opacity: .3;
+}
+.image-uploader.remove-preview .dropzone .dz-message{
+  background-color: transparent;
+}
+.image-uploader.remove-preview .dropzone .dz-message > *{
+  display: none;
+}
+.image-uploader.remove-preview .dropzone .remove-message{
+  display: block;
+  font-weight: bold;
+  font-size: 1.25em;
+  margin-top: 20px;
+  color: #333;
+}
+.image-uploader .dz-image-preview .remove{
+  top: 0px;
+  color: #fb5656;
+  font-size: 1.25em;
+  height: 2em;
+	z-index: 5; /* should be ontop of all other dropzone elements */
+}
+.port-editor-logos .edit-image{
+  border: 1px solid #dedede;
+  margin-right: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  position: relative;
+}
+.port-editor-logos .edit-image .dropzone{
+  height: 150px;
+  width: 150px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+  overflow: hidden;
+}
+.port-editor-logos p.notification.error {
+    text-align: center;
+    margin: 0;
+}
+.port-editor-settings {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+.port-editor-settings .edit-image .remove{
+  font-size: 1.5em;
+  display: block;
+}
+.port-editor-settings .logos-container .edit-image .dropzone .remove-message,
+.port-editor-settings .logos-container .edit-image .dropzone .remove {
+    display: none;
+}
+.port-editor-settings > .row-fluid{
+  padding: 20px 40px;
+  box-sizing: border-box;
+}
+.port-editor-settings > .row-fluid:nth-child(odd){
+  background-color: #EEE;
+}
+.port-editor-settings .description-container textarea{
+  width: 100%;
+}
+.port-editor-section.port-editor-data{
+  padding: 20px 40px;
+}
+.port-editor-section.port-editor-data #sidebar > *{
+  padding-left: 0px;
+  padding-right: 0px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.port-editor-section.port-editor-data .result-header{
+  padding-right: 0px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Portal Editor markdown section
+ * SEE ALSO: .portal-display-image{} and .portal-display-text{} from portal styles
+ */
+
+.port-editor-section.port-editor-md {
+	float: left;
+	position: relative;
+	width: 100%
+}
+
+.port-editor-section.port-editor-md .dropzone{
+	width: calc(100% - 2px);
+	margin:1px;
+}
+
+.port-editor-section.port-editor-md .dropzone .dz-message{
+	flex-direction: column;
+	justify-content: flex-end;
+	padding-bottom: 0px;
+}
+.portal-editor .portal-display-image{
+  padding-top: 0px;
+  padding-bottom: 0px;
+  margin-top: -1px;
+}
+.portal-view h2 {
+    font-size: 2em;
+    font-weight: normal;
+}
+.port-editor-md .portal-display-image .dropzone .icon-upload{
+  z-index: 1;
+}
+.portal-display-image .image-uploader .dz-image-preview .remove {
+    font-size: 2em;
+    margin-right: 10px;
+    margin-top: 10px;
+    color: red;
+		z-index: 5; /* should be above all other elements in the dropzone area */
+}
+/* for the cs-message: calc(100% - 1px) */
+
+.Portal.Editor .portal-display-text {
+	position: absolute;
+	width: calc(100% - 6px); /* so it doesn't overlap the dropzone border */
+	top: 0;
+	box-sizing: border-box;
+	left: 0;
+	margin: 60px 0px 0px 3px;
+  padding: 20px 40px;
+  z-index: 10; /* so it's above all the dropzone stuff */
+}
+
+.port-editor-markdown-container div.portal-display-image {
+	padding: 0;
+	min-height: 300px;
+}
+.port-editor-md > *{
+  padding-left: 40px;
+  padding-right: 40px;
+}
+.port-editor-md > .portal-display-image{
+  padding-left: 0px;
+  padding-right: 0px;
+}
+.port-editor-md .title,
+.port-editor-md .introduction {
+	width: 100%;
+	padding: 0px;
+	background: transparent;
+	color: white;
+	border: none;
+	border-radius: 0;
+	border-bottom: 1.5px solid white;
+	box-shadow: none;
+}
+.port-editor-md .title {
+	font-weight: 300;
+	font-size: 31.5px;
+	line-height: 44px;
+	margin: 15px 0;
+	min-height: 44px;
+}
+.port-editor-md .introduction{
+	font-weight: 400;
+	font-size: 14px;
+	line-height: 1.5em;
+	margin: 0 0 10px;
+	min-height: 1.6em;
+}
+
+.port-editor-md .title::placeholder,
+.port-editor-md .introduction::placeholder {
+	color: white;
+  opacity: 0.4;
+}
+
+/* the markdown editor textarea field */
+.port-editor-md textarea.markdown{
+	margin: 20px 0px;
+	width: 100%;
+	line-height: 1.6em;
+	font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+	padding: 0.5rem;
+}
+
+.port-editor-md .markdown-help{
+	display: flex;
+	justify-content: space-around;
+	align-items: stretch;
+	align-content: stretch;
+	flex-wrap: wrap;
+}
+
+.port-editor-md .markdown-help table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.port-editor-md .markdown-help-column {
+	box-shadow: 0 0px 4px 0 rgba(0, 0, 0, 0.15);
+  padding: 15px;
+  background-color: #fbfbfb;
+	border-radius: 3px;
+	margin: 10px
+}
+
+.port-editor-md .markdown-help-column td {
+  padding: 2px 1px;
+	border-top: 1px solid #ececec;
+}
+
+.port-editor-md .markdown-help-column th {
+	padding-bottom: 9px;
+	font-weight: 600;
+  font-size: 13px;
+}
+
+.port-editor-md .markdown-help-column .more-help {
+	font-weight: 600;
+  font-size: 13px;
+	margin: 5px 0 0 0;
+	color: #555555;
+
+}
+
+.port-editor-md .markdown-help-column code,
+.port-editor-md .markdown-help-column pre {
+	color: #999999;
+	background-color: transparent;
+  border: none;
+	padding: 0px;
+	font-size: 12px;
+	margin: 0px;
+}
+
+.port-editor-md .markdown-help-column h1{
+	font-weight: 300;
+	font-size: 21px;
+	margin: 0;
+}
+
+.port-editor-md .markdown-help-column h2{
+	font-weight: 700;
+	font-size: 16px;
+	margin: 0;
+}
+
+.port-editor-md .markdown-help-column blockquote{
+	margin: 0;
+}
+
+/* Portal editor metrics page */
+
+.editor-view.portal-editor div#Metrics svg{
+	width: 100%;
+	height: 400px;
+	margin-top: 40px;
+}
+
+/* Add section options */
+
+#section-options-container{
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: stretch;
+}
+
+.section-option {
+  padding: 12px 13px;
+  background-color: white;
+  border: 1px solid #DEDEDE;
+  border-radius: 4px;
+	cursor: pointer;
+	width: 175px;
+	margin: 15px;
+	transition: box-shadow 250ms, transform 250ms;
+}
+
+.section-option:hover{
+	box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 5px rgba(0,0,0,0.06);
+	transform: translate(0.2px,-0.2px);
+	transition: box-shadow 200ms, transform 200ms;
+}
+
+.section-option.disabled{
+	background-color: #FAFAFA;
+	cursor: not-allowed;
+	color: #DCDCDC;
+}
+
+.section-option.disabled:hover{
+	box-shadow: none;
+	transform: none;
+	transition: none;
+}
+
+.section-option.disabled .subtle{
+	color: #DCDCDC;
+}
+
+.section-option p.description {
+	font-weight: 300;
+	line-height: 1.25;
+	margin-block-end: 0;
+}
+
+.section-option h5 {
+	margin: 11px 0 6px 0;
+}
+.section-option svg{
+	display: block;
+	margin: auto;
+}
+
+.port-editor-section svg .theme-primary-fill{
+	fill: #05446A
+}
+.port-editor-section svg .theme-secondary-fill{
+	fill: #118AD5
+}
+.port-editor-section svg .theme-accent-fill{
+	fill: #05ab8f
+},
+
+.port-editor-section svg .skintone-fill{
+	fill: #72351c
+}
+.port-editor-section svg .skintone2-fill{
+	fill: #9f7766
+}
+
+/* Disabled add section image fill color */
+.port-editor-section .disabled svg .theme-primary-fill{
+	fill: #3d3d3d
+}
+.port-editor-section .disabled svg .theme-secondary-fill{
+	fill: #ebebeb
+}
+.port-editor-section .disabled svg .theme-accent-fill{
+	fill: #d6d6d6
+}
+.port-editor-section .disabled svg .skintone-fill{
+	fill: #575757
+}
+.port-editor-section .disabled svg .skintone2-fill{
+	fill: #828282
+}
+
+/******************************************
+* Portals & Portal Editor (styles shared between both)
+********************************************/
+
+.portal-editor #editor-header{
+  border-bottom: 0px;
+  padding: 20px 40px;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Top level app navigation in the PortalView and EditorView */
+.Portal.Editor #Navbar,
+.PortalView #Navbar{
+  position: relative;
+  width: 100%;
+  left: 0px;
+  margin: 0px;
+}
+
+.Portal.Editor .navbar,
+.PortalView .navbar{
+  margin: 0px;
+}
+
+.Portal.Editor .navbar-inner,
+.PortalView .navbar-inner{
+  background-image: none;
+  box-shadow: none;
+  background-color: #f2f2f2;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  min-height: 0px;
+}
+
+.Portal.Editor .navbar .nav > li > a.brand,
+.PortalView .navbar .nav > li > a.brand{
+  font-size: 25px;
+  letter-spacing: -2px;
+}
+
+.Portal.Editor .navbar .nav > li > a,
+.Portal.Editor .nav .input > form > label,
+.PortalView .navbar .nav > li > a,
+.PortalView .nav .input > form > label{
+  font-size: 12px;
+}
+
+
+.Portal.Editor #Navbar a.brand,
+.Portal.Editor #Navbar a.brand {
+	margin-left: 20px;
+}
+
+.Portal.Editor #Navbar .minimal-nav > a,
+.Portal.Editor #Navbar .minimal-nav > .icon,
+.Portal.Editor #Navbar .minimal-nav > a > .icon,
+.Portal.Editor #Navbar  .minimal-nav > a,
+.PortalView #Navbar .minimal-nav > .icon,
+.PortalView #Navbar .minimal-nav > a > .icon{
+    color: inherit;
+}
+
+.Portal.Editor #Navbar .nav > li,
+.PortalView #Navbar .nav > li {
+    display: none;
+}
+
+.Portal.Editor #Navbar .nav .minimal-nav,
+.PortalView #Navbar .nav .minimal-nav {
+    display: block;
+}
+.Portal.Editor #Navbar .nav .minimal-nav:not(:last-child),
+.PortalView #Navbar .nav .minimal-nav:not(:last-child) {
+  margin-right: 20px;
+}
+.Portal.Editor #Navbar .nav .minimal-nav a,
+.PortalView #Navbar .nav .minimal-nav a {
+    font-size: .9em;
+    text-transform: none;
+    text-shadow: none;
+}
+.Portal.Editor #Navbar .nav .minimal-nav > a:not(.btn),
+.PortalView #Navbar .nav .minimal-nav > a:not(.btn) {
+  margin-bottom: 0px;
+  padding: 0px;
+}
+.Portal.Editor #Navbar .nav .minimal-nav.subtle a,
+.PortalView #Navbar .nav .minimal-nav.subtle a {
+    color: #999;
+}
+
+.Portal.Editor #Navbar .nav,
+.PortalView #Navbar .nav {
+    margin-top: 0px;
+		display: flex;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+}
+.PortalView #Navbar #editPortal{
+  margin-top: 0px;
+  margin-bottom: 0px;
+  padding: 7px;
+}
+/* markdown section table of contents (portal and portal editor) */
+.Editor.Portal .toc-view.affix,
+.portal-section-content .toc-view.affix{
+  top: 20px;
+}
+.Editor.Portal .toc-view.affix-bottom,
+.portal-section-content .toc-view.affix-bottom{
+  top: 20px;
+  position: fixed;
+}
+.Editor.Portal .toc-view.span3.affix + .span9,
+.Editor.Portal .toc-view.span3.affix-bottom + .span9,
+.portal-section-content .toc-view.span3.affix + .span9,
+.portal-section-content .toc-view.span3.affix-bottom + .span9{
+  margin-left: 26.5%;
+}
+.Editor.Portal .toc-ul,
+.portal-view .toc-ul{
+	position: sticky;
+	position: -webkit-sticky;
+  background-color: #2c6f90; /* Back-up color for IE */
+  background-color: var(--portal-primary-color);
+  margin-left: -20px;
+  padding: 0px;
+}
+.Editor.Portal .toc-ul > li > a,
+.portal-view .toc-ul > li > a{
+  padding-left: 20px;
+  padding-right: 20px;
+  margin: 0px;
+}
+.Editor.Portal .toc-ul a,
+.portal-view .toc-ul a{
+  line-height: 2em;
+}
+.Editor.Portal .toc-ul > li > ul,
+.portal-view .toc-ul > li > ul{
+  margin-left: 0px;
+  list-style: none;
+}
+.Editor.Portal .toc-ul > li > ul > li > a,
+.portal-view .toc-ul > li > ul > li > a{
+  padding-left: 40px;
+}
+.Editor.Portal .toc-ul li,
+.Editor.Portal .toc-ul a,
+.portal-view .toc-ul li,
+.portal-view .toc-ul a{
+  background-color: transparent;
+  color: #FFF;
+  border:0px;
+  border-radius: 0px;
+  text-shadow: none;
+}
+.Editor.Portal .toc li.active > a,
+.portal-view .toc li.active > a {
+  background-color: #2c7e90; /* Back-up color for IE */
+	background-color: var(--portal-secondary-color);
+}
+
+.Editor.Portal .toc-ul a:hover,
+.portal-view .toc-ul a:hover{
+  color: #FFF;
+  background-color: transparent;
+}
+.toc a{
+	color: #555;
+}
+.toc .icon{
+	color: #069;
+}
+i.toc-sub-item{
+	margin-left: 18px;
+	visibility: hidden;
+}
+/* hide mobile TOC by default */
+.portal-section-content .toc .mobile {
+	display: none;
+}
+.submenu.hidden{
+	display: none;
+}
+/* end of markdown section table of contents */
+
+/******************************************
+* Portals
+********************************************/
+
+.portal-view{
+  width: calc(100% + 80px);
+  margin-left: -40px;
+}
+.portal-view #sidebar {
+  display: none;
+}
+.PortalView #Content{
+  padding-top: 0px;
+}
+
+#portal-header-container{
+	margin-top: 30px;
+  margin-bottom: 30px;
+  padding-left: 40px;
+  box-sizing: border-box;
+}
+
+#portal-header-container > .row {
+  display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+	width: 100%;
+}
+
+#portal-section-tabs{
+  margin-bottom: 0px;
+}
+#portal-section-tabs .portal-section-link {
+  background-color: transparent;
+  border-radius: 0px;
+  text-align: center;
+	box-sizing: border-box;
+}
+.section-link-container{
+  position: relative;
+}
+.portal-section-content{
+  padding: 20px;
+}
+.portal-display-image{
+  background-repeat: no-repeat;
+  background-position-x: 50%;
+  background-position-y: 50%;
+  background-size: cover;
+  min-height: 200px;
+  padding-top: 60px;
+  padding-bottom: 60px;
+  color: #FFF;
+  margin-bottom: 40px;
+}
+.portal-display-text{
+  box-sizing: border-box;
+  padding: 20px;
+}
+.portal-display-image .portal-display-text,
+.portal-editor .portal-display-text{
+  background-color: rgba(44, 111, 144, .5);
+  background-color: var(--portal-primary-color-transparent);
+}
+.portal-display-image .portal-display-text *,
+.portal-editor .portal-display-text *{
+  color: #FFF;
+}
+.portal-editor .portal-display-text .notification.error{
+  color: #a70704;
+  margin-bottom: 0px;
+}
+.portal-editor .portal-display-text textarea{
+  padding-left: 10px;
+}
+.logo-container{
+	height: 100px;
+  white-space: nowrap;
+  width: 100%;
+  display: table;
+	padding-top:10px;
+}
+.logo-image{
+	vertical-align: middle;
+  padding: 10px;
+  display: table-cell;
+}
+.portal-view .portal-logo{
+	max-width: 100%;
+	max-height: 80px;
+  display: inline-block;
+  margin-right: 30px;
+}
+.portal-view #results-container{
+	width: 100%;
+	margin-left:0px;
+}
+.portal-view .mapMode #results-container,
+.portal-view .mapMode #map-container{
+	width: 50%;
+}
+.portal-view .data-catalog,
+.portal-view .data-catalog #results-container,
+.portal-view .data-catalog #map-container,
+.portal-view .data-catalog #map-canvas{
+  min-height: 700px;
+}
+.portal-view .data-catalog #clear-all{
+	display: none;
+}
+.portal-view .portal-title{
+  line-height: 1.5em;
+  margin: 0px;
+  font-size: 2em;
+  display: inline-block;
+}
+.portal-logos-view{
+  border-top: 1px solid #ededed;
+  margin-top: 3em;
+  padding-top: 5em;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.portal-logos-view .img-logo{
+	max-width: 120px;
+  margin: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.well.awards-info {
+	background: inherit;
+	margin: 20px;
+}
+
+.portal-view .portal-section-link {
+  width: 100%;
+}
+.portal-view .logo-row{
+	margin-bottom: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.portal-view .profile .profile-title,
+.portal-view .profile .charts-container > p{
+  padding-left: 20px;
+}
+.portal-view .profile .profile-title{
+  font-size: 1.5em;
+}
+.portal-view #Members .row-fluid{
+  padding: 20px;
+  box-sizing: border-box;
+}
+.portal-view #Members .row-fluid:nth-child(odd) {
+    background-color: #EEE;
+}
+
+/*** Colors used in the Portal View ***/
+.portal-view .toc .icon,
+.portal-editor .toc .icon{
+  color: #2c6f90; /* Back-up color for IE */
+	color: var(--portal-primary-color);
+}
+.portal-view a:not(.btn):hover,
+.portal-editor a:not(.btn):hover{
+  color: #2c7e90; /* Back-up color for IE */
+	color: var(--portal-secondary-color);
+}
+#portal-section-tabs{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  border-bottom: 0px;
+}
+.portal-editor #portal-section-tabs{
+  display: block;
+	border-bottom: 1px solid #333;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* hide black border below active tabs */
+.portal-editor #portal-section-tabs .section-link-container.active::after {
+  content: "";
+  width: 100%;
+  border-bottom: 1px solid white;
+  height: 1px;
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+}
+.portal-editor #portal-section-tabs .section-link-container.active:hover::after {
+  border-bottom: 1px solid #2c7e90; /* Back-up color for IE */
+	border-bottom: 1px solid var(--portal-secondary-color);
+}
+
+#portal-section-tabs .section-link-container{
+  background-color: #2c6f90; /* Back-up color for IE */
+  background-color: var(--portal-primary-color);
+  border: 0px;
+  margin-bottom: 0px;
+  flex-grow: 1;
+}
+
+/* show toggle for showing/hiding section links on mobile only */
+.Editor.Portal .show-sections-toggle,
+.PortalView .show-sections-toggle{
+	visibility: hidden;
+	display: none;
+}
+
+.portal-editor #portal-section-tabs * {
+	transition: none;
+}
+
+.portal-editor #portal-section-tabs .section-link-container{
+  border-width: 1px 1px 0px 1px;
+  border-color: #FFF;
+  border-style: solid;
+  border-top-right-radius: 4px;
+  border-top-left-radius: 4px;
+	height: 36px;
+}
+.portal-editor #portal-section-tabs .section-link-container.hidden-section{
+  background-color: #999;
+  border-color: #666;
+}
+.portal-editor #portal-section-tabs .section-link-container.hidden-section .hidden-section-icon{
+  display: inline;
+}
+
+.portal-editor #portal-section-tabs .section-link-container.active{
+  background-color: #FFF;
+  border-color: #CCC;
+}
+.portal-view #portal-section-tabs .section-link-container.active{
+  background-color: #2c7e90; /* Back-up color for IE */
+  background-color: var(--portal-secondary-color);
+}
+#portal-section-tabs .section-link-container.error{
+  border-color: #b94a48;
+  background-color: #f2dede;
+}
+.portal-editor #portal-section-tabs .section-link-container.error .portal-section-link{
+  color: #b94a48;
+}
+.portal-view #portal-section-tabs .section-link-container .portal-section-link,
+.portal-view #portal-section-tabs .section-link-container.active .portal-section-link{
+  color: #FFF;
+}
+#portal-section-tabs .portal-section-link,
+#portal-section-tabs .section-menu-link{
+	color: #FFF;
+  background-color: transparent;
+  margin-right: 0px;
+  float: left;
+  border: 0px;
+  cursor: pointer;
+}
+#portal-section-tabs .section-menu-link{
+  display: inline-block;
+	padding: 8px 10px;
+	box-sizing: border-box;
+	max-width: 44px;
+}
+#portal-section-tabs .active .section-menu-link{
+  color: #2c6f90; /* Back-up color for IE */
+  color: var(--portal-primary-color);
+}
+#portal-section-tabs .portal-section-link[contenteditable="true"]{
+  width: calc(100% - 48px);
+}
+#portal-section-tabs .section-link-container.page-AddPage{
+  flex-grow: unset;
+  margin-right: 40px;
+}
+#portal-section-tabs .section-link-container.page-AddPage > a{
+	height: 36px;
+}
+#portal-section-tabs .section-link-container.page-AddPage .icon{
+  font-size: 1.75em;
+}
+#portal-section-tabs .section-link-container.page-AddPage .portal-section-link:hover,
+#portal-section-tabs .section-link-container.page-Settings .portal-section-link:hover{
+  background-color: transparent;
+  color: #2c7e90; /* Back-up color for IE */
+  color: var(--portal-secondary-color);
+}
+#portal-section-tabs .section-link-container.page-AddPage .portal-section-link{
+  color: #FFF;
+  width: 100%;
+}
+#portal-section-tabs .section-link-container.active .portal-section-link{
+  color: #2c6f90; /* Back-up color for IE */
+  color: var(--portal-primary-color);
+}
+#portal-section-tabs .section-link-container.active:hover,
+#portal-section-tabs .section-link-container:hover {
+  background-color: #2c7e90; /* Back-up color for IE */
+  background-color: var(--portal-secondary-color);
+}
+#portal-section-tabs .section-link-container:hover .portal-section-link,
+#portal-section-tabs .section-link-container.active:hover .section-menu-link,
+#portal-section-tabs .section-link-container:hover .section-menu-link {
+	border-radius: 0;
+	color: #FFF !important;
+}
+#portal-section-tabs .section-link-container .popover-content p {
+	color: #333;
+	margin: 10px 0px 0px 0px;
+}
+#portal-section-tabs .section-link-container.page-Settings{
+  flex-grow: unset;
+  width: 100px;
+}
+#portal-section-tabs .section-link-container.page-Settings.error{
+  width: 120px;
+}
+#portal-section-tabs .section-link-container.page-Settings.error .portal-section-link{
+  color: #b94a48;
+}
+#portal-section-tabs .section-link-container .dropdown-menu>li>a{
+  color: #2c6f90; /* Back-up color for IE */
+  color: var(--portal-primary-color);
+  border-bottom: 1px solid #CCC;
+  line-height: 25px;
+}
+#portal-section-tabs .section-link-container .dropdown-menu>li:last-child>a{
+  border-bottom-width: 0px;
+  border-bottom-left-radius: 6px;
+  border-botttom-right-radius: 6px;
+}
+#portal-section-tabs .section-link-container .dropdown-menu>li>a:hover{
+  background-image: none;
+  background-color: #DDD;
+}
+.portal-view .toc-ul li > a:hover,
+.portal-editor .toc-ul li > a:hover{
+  background-color: #2c7e90; /* Back-up color for IE */
+  background-color: var(--portal-secondary-color);
+	color: white;
+}
+.portal-view .result-row .citation .title,
+.portal-editor .result-row .citation .title{
+  color: #2c6f90; /* Back-up color for IE */
+	color: var(--portal-primary-color);
+}
+.portal-view .applied-filter,
+.portal-editor .applied-filter{
+  background-color: #2c6f90; /* Back-up color for IE */
+	background-color: var(--portal-primary-color);
+}
+.portal-view .filter-group-link a,
+.portal-editor .filter-group-link a{
+  color: #2c6f90; /* Back-up color for IE */
+	color: var(--portal-primary-color);
+}
+.portal-view .filter-group-link a:hover,
+.portal-editor .filter-group-link a:hover{
+  color: #2c7e90; /* Back-up color for IE */
+	color: var(--portal-secondary-color);
+}
+.portal-view .filter-group-link.active a,
+.portal-view .filter-group-link.active a:hover,
+.portal-editor .filter-group-link.active a,
+.portal-editor .filter-group-link.active a:hover{
+	color: inherit;
+}
+.portal-view .can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch,
+.portal-view .can-toggle input[type="checkbox"]:checked:focus ~ label .can-toggle-switch,
+.portal-editor .can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch,
+.portal-editor .can-toggle input[type="checkbox"]:checked:focus ~ label .can-toggle-switch{
+  background-color: #2c6f90; /* Back-up color for IE */
+	background-color: var(--portal-primary-color);
+}
+.portal-view .can-toggle input[type="checkbox"]:checked:hover ~ label .can-toggle-switch,
+.portal-editor .can-toggle input[type="checkbox"]:checked:hover ~ label .can-toggle-switch{
+  background-color: #2c7e90; /* Back-up color for IE */
+	background-color: var(--portal-secondary-color);
+}
+.portal-view .ui-slider-range,
+.portal-editor .ui-slider-range{
+  background-color: #2c6f90; /* Back-up color for IE */
+	background-color: var(--portal-primary-color);
+}
+.portal-view .result-row .citation a:hover,
+.portal-view .result-row .citation a:hover .title,
+.portal-view .result-row .citation a:hover .id,
+.portal-editor .result-row .citation a:hover,
+.portal-editor .result-row .citation a:hover .title,
+.portal-editor .result-row .citation a:hover .id{
+  color: #2c7e90; /* Back-up color for IE */
+	color: var(--portal-secondary-color);
+}
+.portal-view .result-row .icon,
+.portal-editor .result-row .icon{
+	color: #666;
+}
+.portal-view .profile .quick-stats circle,
+.portal-editor .profile .quick-stats circle{
+  stroke: #2c6f90; /* Back-up color for IE */
+	stroke:  var(--portal-primary-color);
+}
+.portal-view svg .packages,
+.portal-view .chart-title .packages,
+.portal-editor svg .packages,
+.portal-editor .chart-title .packages{
+  color: #2c6f90; /* Back-up color for IE */
+  fill: #2c6f90; /* Back-up color for IE */
+	color: var(--portal-primary-color);
+	fill: var(--portal-primary-color);
+}
+.portal-view svg circle.packages,
+.portal-editor svg circle.packages{
+	fill: none;
+}
+.portal-view svg .metadata,
+.portal-view .fallback.metadata,
+.portal-editor svg .metadata,
+.portal-editor .fallback.metadata{
+  color: #2c7e90; /* Back-up color for IE */
+  fill: #2c7e90; /* Back-up color for IE */
+  stroke: #2c7e90; /* Back-up color for IE */
+	color: var(--portal-secondary-color);
+	fill: var(--portal-secondary-color);
+	stroke: var(--portal-secondary-color);
+}
+.portal-view .line-chart .line,
+.portal-editor .line-chart .line{
+	fill: none;
+}
+.portal-view .line-chart text.line-chart-label,
+.portal-editor .line-chart text.line-chart-label{
+	fill: #FFF;
+}
+.portal-view #portal-members a,
+.portal-editor #portal-members a{
+  color: #2c6f90; /* Back-up color for IE */
+	color: var(--portal-primary-color);
+}
+
+.my-portals-container table tr {
+	vertical-align: middle;
+	height: 90px;
+	min-height: 90px;
+}
+
+.my-portals-container table td {
+	vertical-align: middle;
+}
+
+.portal-list-container .logo img {
+	min-width: 70px;
+	width: 70px;
+	height: 70px;
+	object-fit: contain;
+	border-radius: 50%;
+}
+.portal-list-container .loading {
+  height: 50px;
+}
+
+.my-portals-container table td.title > a {
+	font-size: 15px;
+	line-height: 0.9;
+	color: #3a3a3a;
+}
+
+.my-portals-container table td.title > a:hover {
+	color: #660000;
+}
+
+.my-portals-container table td.portal-label {
+	color: #a4a4a4;
+}
+
+.create-btn-container .btn{
+  float: right;
+  margin-bottom: 20px;
+}
+
+/* markdown citations */
+.markdown .inlineCitation {
+
+}
+
+.markdown .csl-entry {
+	text-indent: -15px;
+	margin-left: 15px;
+	margin-bottom: 10px;
+}
+
+.markdown #bibliography {
+	margin-top: 40px;
+	margin-bottom: 20px;
+}
+/******************************************
+* HTML converted from Markdown
+********************************************/
+
+/* the following two rules overwrite both:
+	i. the bootstrap `pre` rules
+	ii. individual theme `pre` rules
+*/
+div.markdown pre {
+	color: #383a42;
+	background: #fafafa;
+	border-radius: 3px;
+}
+
 /******************************************
 * Download / Resource Map contents table
 ********************************************/
@@ -2627,6 +4363,12 @@ tfoot .control i{
 .route-to-metadata{
 	cursor: pointer;
 }
+.citation.collection .title{
+  display: block;
+}
+.citation.collection .id{
+  display: none;
+}
 
 /******************************************
 ** User Profile ***
@@ -2732,8 +4474,7 @@ textarea.token{
 .orcid-logo{
 	height: 16px;
 	width: 16px;
-	margin-left: 10px;
-	margin-right: 5px;
+	vertical-align: middle;
 }
 #user-profile .logo{
 	max-width: 100px;
@@ -2780,6 +4521,17 @@ address.email-container:before{
 #quality-score, #quality-chart{
 	display: none;
 }
+
+.quality-report-view #suiteId {
+    position: relative;
+    width: auto;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.new-icon{
+  color: #d2a908;
+}
+
 /******************************************
 ** Stats ***
 ******************************************/
@@ -2799,6 +4551,9 @@ address.email-container:before{
 }
 .profile .chart-title{
 	float: left;
+}
+.profile .charts{
+  box-sizing: border-box;
 }
 .profile .chart{
 	float: left;
@@ -2900,6 +4655,19 @@ svg .default,
 	fill: #999;
 }
 
+/**** Static Image Chart Styles *****/
+.profile .stripe img{
+	width: 100%;
+	max-width: 950px;
+	min-width: 600px;
+	padding-top: 30px;
+	padding-left: 10px;
+	overflow-x: scroll;
+}
+
+.profile .stripe .static-img-container {
+	overflow-x: auto;
+}
 
 /**** No Activity Chart Styles (when Stats View is blank/ no activity found) *****/
 svg .no-activity,
@@ -2915,7 +4683,6 @@ svg .no-activity,
 .donut.default .donut-title-text{
 	fill: #CCCCCC;
 }
-
 
 
 /******************************************
@@ -2991,8 +4758,9 @@ svg .no-activity,
   border: 1px solid #ddd;
 }
 .list-group-header.list-group-item{
-	background-color: #ECF1F5;
+	background-color: #f5f5f5;
 	min-width: auto;
+	padding: 10px;
 }
 .panel>.list-group .list-group-item.active{
 	border-left-width: 5px;
@@ -3151,7 +4919,7 @@ body.mapMode{
   	overflow: hidden;
 }
 .filter-input-contain{
-	clear: both;
+	width: 100%;
 }
 .filter.btn{
 	margin-bottom: 0px;
@@ -3227,7 +4995,7 @@ body.mapMode{
 #sidebar > *{
   padding-left: 10px;
   padding-right: 10px;
-  width: calc(100% - 20px);
+  width: calc(100% - 30px);
 }
 #sidebar > .input-append{
 	margin-top: 10px;
@@ -3273,15 +5041,13 @@ body.mapMode{
 #sidebar .ui-helper-hidden-accessible{
 	display: none;
 }
-.filter-autocomplete .ui-menu-item a{
-	font-size: 1em;
-}
-.filter-autocomplete .ui-menu-item a:hover,
-.filter-autocomplete .ui-menu-item a:focus{
-	border: 0px;
-}
 #filter-year .filter-input-contain{
 	margin-top: 10px;
+}
+.filter-contain input[type="checkbox"].filter{
+   width: 20px;
+   float: left;
+   margin-right: 5px;
 }
 /*-- Pagination and sort --*/
 .sort-by{
@@ -3295,6 +5061,9 @@ body.mapMode{
 }
 .sort-by select{
 	width: auto;
+}
+#results-container .pagination{
+	box-sizing: border-box;
 }
 /*-- The filter checkboxes --*/
 #includes-files label{
@@ -3314,7 +5083,6 @@ body.mapMode{
 }
 .checkbox-list label{
  	font-size: .9em;
- 	clear: both;
 }
 .checkbox-list .more-link,
 .checkbox-list .less-link{
@@ -3327,34 +5095,6 @@ body.mapMode{
 	font-size: 1.2em;
 	vertical-align: text-bottom;
   	line-height: .9em;
-}
-/** UI Buttonsets **/
-.ui-buttonset label,
-.ui-buttonset label.ui-state-active{
-    float: none;
-}
-.ui-buttonset label#data-year-label,
-.ui-buttonset label#pub-year-label{
- 	margin: 0px 5px 5px 0px;
- 	float: left;
- 	width: auto;
-}
-.ui-checkboxradio-label input[type="checkbox"]{
-   	display: none;
-}
-.ui-checkboxradio-label .icon-check-empty,
-.ui-checkboxradio-label .icon-check{
-	margin-right: 5px;
-}
-.ui-checkboxradio-label .icon{
-	margin-right: 5px;
-}
-label.ui-state-active .icon-check-empty,
-label .icon-check {
-  display: none;
-}
-label.ui-state-active .icon-check{
-	display: inline;
 }
 /** Filter icons **/
 .filter-contain > label > .icon{
@@ -3407,12 +5147,509 @@ label.ui-state-active .icon-check{
 	background-color:#e6e6e6;
 	color: #333;
 }
-.btn.download[disabled], .btn-primary.download[disabled]:hover{
-	min-width: 105px;
+
+/********* Filter Views ***********/
+.portal-view .filter-group{
+  padding: 0px 20px;
+}
+.filter-group .filters-container{
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+.filter-group .filter {
+  flex-grow: 1;
+  padding-right: 20px;
+  max-width: 350px;
+  min-width: 200px;
+}
+.filter-groups.vertical .filter-group .filter{
+  padding-right: 0px;
+  min-width: 0px;
+  max-width: 100%;
+  margin-bottom: 10px;
+}
+.filter-groups .filter .btn{
+	box-shadow: none;
+	border-color: #ccc;
+  color: #999;
+  padding: 4px 10px;
+}
+.filter-groups.vertical .filter .btn{
+  margin-left: -5px;
+  padding: 4px 10px;
+}
+.filter-groups .filter .btn .icon{
+  line-height: 16px;
+  margin: 0px;
+}
+.filter-group .filter input{
+	box-shadow: none;
+}
+.filter-groups .filter label{
+	cursor: default;
+}
+.filter-group-links{
+  border-top: 1px solid #DDD;
+  clear: both;
+}
+.filter-groups.vertical .filter-group-links {
+  border: 0px;
+}
+.filter-group-link a,
+.nav-tabs .filter-group-link a,
+.nav-tabs .filter-group-link.active a {
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-bottom: 0px;
+    border-top: 0px;
+		border-radius: 0px;
+		border-top-width: 0px;
+		margin-right: 0px;
+		border-right-width: 0px;
+		text-align: center;
+}
+.nav-tabs .filter-group-link.active a{
+	background-color: #FFF;
+}
+.nav-tabs .filter-group-link a:hover{
+	border-color: #CCC;
+}
+.filter-group-link{
+	background-color: #eee;
+}
+.filter-groups.vertical .filter-group-link {
+  float: none;
+}
+.filter-groups.vertical .filter-group-link a,
+.filter-groups.vertical .nav-tabs .filter-group-link a,
+.filter-groups.vertical .nav-tabs .filter-group-link.active a {
+    border: 0px;
+    text-align: left;
+    padding-left: 0px;
+}
+.filter-group .filter .ui-slider{
+	position: relative;
+	height: 5px;
+	margin-top: 20px;
+	margin-bottom: 20px;
+	width: 90%;
+	width: calc(100% - 20px);
+}
+.filter-group .filter .ui-slider-handle{
+  width: 7px;
+  height: 16px;
+}
+.filters-title{
+	text-transform: uppercase;
+	color: #999;
+	font-size: .9em;
+	font-weight: normal;
+	margin-top: 0px;
+}
+.filter-groups:not(.vertical) .filters-title{
+  display: none;
+}
+.filter-groups.vertical .filters-title{
+  display: none;
+  font-size: .85em;
+}
+.filter-groups.vertical .filters-title .clear-all{
+  margin-left: 10px;
+}
+.filter-groups.vertical .filters-title .clear-all .icon{
+  float: right;
+  margin-top: 2px;
+  font-size: 1.2em;
+}
+.filters-title .clear-all{
+	margin-left: 10px;
+}
+.filters-header label{
+  font-weight: bold;
+}
+.filters-header .applied-filters{
+	min-height: 25px;
+}
+.filters-header .applied-filters .applied-filter{
+  background-color: #166194;
+  color: #FFF;
+  -webkit-border-radius: 2px;
+  -moz-border-radius: 2px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 5px;
+  text-shadow: none;
+  font-size: 1em;
+  font-weight: normal;
+  padding: 5px;
+  margin-right: 10px;
+}
+.filter-groups.vertical .applied-filters .applied-filter{
+  display: block;
+  position: relative;
+}
+.filter-groups.vertical .filters-header .applied-filters .applied-filter > span{
+  width: calc(100% - 20px);
+  display: inline-block;
+  white-space: normal;
+}
+.filters-header .applied-filters .applied-filter .label{
+  font-weight: bold;
+  margin-right: 10px;
+  background-color: transparent;
+}
+.filter-groups.vertical .applied-filters .applied-filter .remove-filter{
+  font-size: 1.3em;
+  position: absolute;
+  right: 5px;
+}
+.filter-groups.vertical .filters-header .applied-filters{
+  min-height: 0px;
+}
+.filters-header > .filter{
+	float: left;
+	margin-right: 10px;
+  width: auto;
+}
+.filter-groups.vertical .filters-header > .filter{
+  float: none;
+  margin-right:0px;
+}
+.filter-groups:not(.vertical) .filters-header > .filter{
+  display: inline-block;
+}
+.filter-groups:not(.vertical) .filters-header > .filter input[type='text']{
+  width: auto;
+}
+.filter.date .min,
+.filter.date .max{
+	max-width: 30%;
+}
+.filter.date .to{
+	width: 30%;
+	width: calc(40% - 50px);
+	text-align: center;
+	display: inline-block;
+}
+.filter.date .min{
+	float: left;
+}
+.filter.date .max{
+	float: right;
+	margin-left: 10px;
+}
+.filter .ui-slider{
+	min-height: 6px;
+  border-radius: 4px;
+  border: 0px;
+  background: #CCC;
+}
+.filter.boolean input{
+  height: auto;
+  font-size: 3em;
+  margin-right: 10px;
+}
+.filter.boolean span{
+	display: inline;
+  white-space: normal;
+}
+.filter.numeric input{
+	max-width: 70px;
+}
+.filter.toggle .can-toggle > span{
+	margin-bottom: 5px;
+	display: block;
+}
+.filter input[type='text']{
+	width: 80%;
+}
+.filter-group .filter select{
+  width: 100%;
+}
+.filter-group > .row-fluid:not(:first-child){
+	margin-top: 20px;
+}
+.applied-filter .icon.remove-filter{
+	opacity: .7;
+	margin-left: 10px;
+	color: inherit;
+}
+.applied-filters{
+	margin: 0px;
+}
+.filters-header{
+	margin: 10px;
+}
+.filter-groups.vertical .filters-header{
+  margin: 0px;
+  border-bottom: 1px dashed #CCC;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+#portal-filters{
+	border: 1px solid #CCC;
+	box-sizing: border-box;
+}
+#portal-filters > .tab-content{
+	padding: 10px 20px;
+}
+#portal-filters > .nav-tabs{
+	margin-bottom: 0px;
+	border: 1px solid #CCC;
+	border-left: 0px;
+	border-right: 0px;
+  background-color: #eee;
+}
+#portal-filters > .nav-tabs > li:first-child > a{
+	border-left: 0px;
+}
+#portal-filters > .nav-tabs > li:last-child > a{
+	border-right: 0px;
 }
 
-a.disabled {
-	pointer-events: none;
+/******** Toggle Widget ************/
+.can-toggle {
+  position: relative;
+}
+.can-toggle *, .can-toggle *:before, .can-toggle *:after {
+  -moz-box-sizing: border-box;
+       box-sizing: border-box;
+			 font-size: 1em;
+}
+.can-toggle input[type="checkbox"] {
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.can-toggle input[type="checkbox"][disabled] ~ label {
+  pointer-events: none;
+}
+.can-toggle input[type="checkbox"][disabled] ~ label .can-toggle-switch {
+  opacity: 0.4;
+}
+.can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch:before {
+  content: attr(data-unchecked);
+  left: 0;
+}
+.can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch:after {
+  content: attr(data-checked);
+}
+.can-toggle label {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+          user-select: none;
+  position: relative;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+      -ms-flex-align: center;
+          align-items: center;
+}
+.can-toggle label .can-toggle__label-text {
+  -webkit-flex: 1;
+      -ms-flex: 1;
+          flex: 1;
+  padding-left: 32px;
+}
+.can-toggle label .can-toggle-switch {
+  position: relative;
+}
+.can-toggle label .can-toggle-switch:before {
+  content: attr(data-checked);
+  position: absolute;
+  top: 0;
+  text-align: center;
+}
+.can-toggle label .can-toggle-switch:after {
+  content: attr(data-unchecked);
+  position: absolute;
+  z-index: 5;
+  text-align: center;
+  background: white;
+  -webkit-border-radius: 4px;
+          border-radius: 4px;
+  -webkit-transform: translate3d(0, 0, 0);
+          transform: translate3d(0, 0, 0);
+}
+.can-toggle input[type="checkbox"][disabled] ~ label {
+  color: rgba(119, 119, 119, 0.5);
+}
+.can-toggle input[type="checkbox"]:focus ~ label .can-toggle-switch,
+.can-toggle input[type="checkbox"]:hover ~ label .can-toggle-switch {
+  background-color: #777;
+}
+.can-toggle input[type="checkbox"]:focus ~ label .can-toggle-switch:after,
+.can-toggle input[type="checkbox"]:hover ~ label .can-toggle-switch:after {
+  color: #5e5e5e;
+}
+.can-toggle input[type="checkbox"]:hover ~ label {
+  color: #6a6a6a;
+}
+.can-toggle input[type="checkbox"]:checked ~ label:hover {
+  color: #55bc49;
+}
+.can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch {
+  background-color: #00689d;
+}
+.can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch:after {
+  color: #00689d;
+}
+.can-toggle input[type="checkbox"]:checked:focus ~ label .can-toggle-switch,
+.can-toggle input[type="checkbox"]:checked:hover ~ label .can-toggle-switch {
+  background-color: #00689d;
+}
+.can-toggle input[type="checkbox"]:checked:focus ~ label .can-toggle-switch:after,
+.can-toggle input[type="checkbox"]:checked:hover ~ label .can-toggle-switch:after {
+  color: #00689d;
+}
+.can-toggle label .can-toggle__label-text {
+  -webkit-flex: 1;
+      -ms-flex: 1;
+          flex: 1;
+}
+.can-toggle label .can-toggle-switch {
+  -webkit-transition: background-color 0.3s cubic-bezier(0, 1, 0.5, 1);
+          transition: background-color 0.3s cubic-bezier(0, 1, 0.5, 1);
+  background: #848484;
+}
+.can-toggle label .can-toggle-switch:before {
+  color: rgba(255, 255, 255, 0.5);
+}
+.can-toggle label .can-toggle-switch:after {
+  -webkit-transition: -webkit-transform 0.3s cubic-bezier(0, 1, 0.5, 1);
+  transition: transform 0.3s cubic-bezier(0, 1, 0.5, 1);
+  color: #777;
+}
+.can-toggle input[type="checkbox"]:focus ~ label .can-toggle-switch:after, .can-toggle input[type="checkbox"]:hover ~ label .can-toggle-switch:after {
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4);
+}
+.can-toggle input[type="checkbox"]:checked ~ label .can-toggle-switch:after {
+  -webkit-transform: translate3d(65px, 0, 0);
+          transform: translate3d(65px, 0, 0);
+}
+.can-toggle input[type="checkbox"]:checked:focus ~ label .can-toggle-switch:after, .can-toggle input[type="checkbox"]:checked:hover ~ label .can-toggle-switch:after {
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4);
+}
+.can-toggle label {
+  font-size: 1em;
+}
+.can-toggle label .can-toggle-switch {
+  height: 1.1em;
+  -webkit-flex: 0 0 134px;
+      -ms-flex: 0 0 134px;
+          flex: 0 0 134px;
+  border-radius: 4px;
+}
+.can-toggle label .can-toggle-switch:before {
+  left: 67px;
+  line-height: 1em;
+  width: 67px;
+  padding: 0 12px;
+}
+.can-toggle label .can-toggle-switch:after {
+  top: 2px;
+  left: 2px;
+  border-radius: 2px;
+  width: 65px;
+  line-height: 1.1em;
+}
+.can-toggle label .can-toggle-switch:hover:after {
+  box-shadow: 0 3px 3px rgba(0, 0, 0, 0.4);
+}
+.can-toggle.can-toggle-small input[type="checkbox"]:focus ~ label .can-toggle-switch:after, .can-toggle.can-toggle-small input[type="checkbox"]:hover ~ label .can-toggle-switch:after {
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+}
+.can-toggle.can-toggle-small input[type="checkbox"]:checked ~ label .can-toggle-switch:after {
+  -webkit-transform: translate3d(98px, 0, 0);
+          transform: translate3d(98px, 0, 0);
+}
+.can-toggle.can-toggle-small input[type="checkbox"]:checked:focus ~ label .can-toggle-switch:after, .can-toggle.can-toggle-small input[type="checkbox"]:checked:hover ~ label .can-toggle-switch:after {
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+}
+.can-toggle.can-toggle-small label {
+  font-size: 1em;
+}
+.can-toggle.can-toggle-small label .can-toggle-switch {
+  height: 2.5em;
+  -webkit-flex: 0 0 200px;
+      -ms-flex: 0 0 200px;
+          flex: 0 0 200px;
+  border-radius: 4px;
+  -webkit-border-radius: 4px;
+}
+.can-toggle.can-toggle-small label .can-toggle-switch:before {
+  left: 100px;
+  line-height: 2.5em;
+  width: 100px;
+  padding: 0 12px;
+}
+.can-toggle.can-toggle-small label .can-toggle-switch:after {
+  top: 1px;
+  left: 1px;
+  border-radius: 4px;
+  width: 100px;
+  line-height: calc(2.5em - 2px);
+}
+.can-toggle.can-toggle-small label .can-toggle-switch:hover:after {
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4);
+}
+/** Autocompletes **/
+.ui-autocomplete{
+  width: 246px;
+  background-color: #FFFFFF;
+  border: 1px solid #999999;
+  padding: 10px;
+  list-style: none;
+  overflow-y: scroll;
+  -webkit-transform: translate3d(0,0,0);
+  max-height: 150px;
+  z-index: 100;
+  overflow-x: hidden;
+}
+.ui-autocomplete .ui-menu-item{
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0px 5px;
+  width: 100%;
+}
+.ui-autocomplete .ui-menu-item:hover{
+  background-color: #DDD;
+  cursor: pointer;
+}
+/******************************************
+** Edit Collection View ***
+******************************************/
+
+/* Make the sidebar a bit wider since filters will be used a lot while editing a collection */
+.edit-collection #sidebar{
+  width: 250px;
+}
+.edit-collection .mapMode #results-container{
+  width: 60%;
+  width: calc((100% - 260px) / 2);
+}
+.edit-collection .mapMode #map-container{
+  width: calc((100% - 260px) / 2);
+}
+/* The Save and Cancel buttons */
+.collection-controls{
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+.collection-controls .save{
+  width: calc(50% - 10px);
+  box-sizing: border-box;
+  margin-right: 10px;
+}
+.collection-controls .cancel{
+  width: calc(50% - 10px);
+  box-sizing: border-box;
 }
 
 /*******************************************
@@ -3532,6 +5769,15 @@ input.subtle:focus
 {
 	width: 200px;
 }
+.input-append .uneditable-input,
+.input-append input,
+.input-append select,
+.input-prepend .add-on:first-child,
+.input-prepend .btn:first-child{
+  -webkit-border-radius: 2px 0 0 2px;
+  -moz-border-radius: 2px 0 0 2px;
+  border-radius: 2px 0 0 2px;
+}
 .jump-width-input{
 	transition: width 1000s;
 }
@@ -3628,6 +5874,22 @@ Editor View
     font-size: 1.1em;
     line-height: 1.6em;
 }
+#editor-header .editor-controls{
+  min-height: 130px;
+  align-items: center;
+  display: flex;
+  margin-left: 40px;
+  height: 100%;
+}
+#editor-header .editor-controls:empty{
+  display: none;
+}
+#editor-header .editor-controls .btn{
+  align-self: center;
+  margin-top: 14px;
+  padding: 10px 15px;
+}
+
 .side-nav-item a {
     width: 100%;
     display: block;
@@ -3682,16 +5944,23 @@ ul.side-nav-items {
 }
 #editor-footer{
 	background-color: #333;
-    position: fixed;
-    width: 100%;
-    box-sizing: border-box;
-    bottom: 0px;
-    padding: 20px;
-    z-index:3;
+  position: fixed;
+  width: 100%;
+  box-sizing: border-box;
+  bottom: 0px;
+  padding: 20px 40px;
+  z-index: 13;
+	height: 74px;
+	box-sizing: border-box;
 }
 .metadata-view #editor-footer{
     display: none;
     left: 0px;
+}
+#editor-footer a:not(.btn){
+    color: #FFF;
+    font-weight: bold;
+    line-height: 40px;
 }
 #cancel-metadata-prov{
     margin-left: 30px;
@@ -3910,21 +6179,30 @@ ul.side-nav-items {
 	cursor:ns-resize;
 }
 
-.editor-controls .btn{
+.editor-save-controls{
 	float: right;
+}
+.editor-save-controls > a{
 	margin-left: 10px;
-	color: #FFF;
     height: 1.5em;
     line-height: 1.5em;
     font-size: 1.1em;
     font-weight: bold;
 }
+.editor-save-controls > a:not(.btn){
+  color: #FFF;
+}
+.editor-save-controls
 .metadata-container textarea{
 	width: 100%;
 	margin-bottom: 20px;
 }
 textarea.xlarge{
 	min-height: 200px;
+}
+
+textarea.medium{
+	min-height: 50px;
 }
 
 /* Highlight drop zones with a dashed border */
@@ -3946,24 +6224,36 @@ textarea.xlarge{
 #editor-body .alert {
     position: relative;
 }
-.Editor #Content > .alert-container{
+.Editor #Content > .alert-container .alert{
 	position: fixed;
-    left: 0px;
-    min-width: 100%;
-    z-index: 1;
-    margin-left: 0px;
-    top: 0px;
+  left: 0px;
+  min-width: 100%;
+  z-index: 14;
+  margin-left: 0px;
+  top: 0px;
+	max-width: 100%;
+}
+.Editor #Content > .alert-container .alert.non-fixed{
+	position: relative;
+  min-width: auto;
+  z-index: 0;
 }
 .Editor #Content > .alert-container .alert{
 	padding: 20px;
 	font-weight: bold;
+  box-sizing: border-box;
 	border-radius: 0px;
 	-moz-border-radius: 0px;
 	-webkit-border-radius: 0px;
 }
+.Editor #Content > .alert-container .alert .container {
+	width: auto;
+	max-width: 940px;
+	text-align: center;
+};
 .Editor input,
 .Editor select{
-	padding: .5em 1em;
+	/*padding: .5em 1em;*/
 	height: 2.4em;
 	box-sizing: border-box;
 	font-size: 1em;
@@ -3982,6 +6272,8 @@ textarea.xlarge{
 	padding: .5em 1em;
 	box-sizing: border-box;
 	font-size: 1em;
+  border-radius: 3px;
+  width: 100%;
 }
 .Editor .checkbox{
 	clear: both;
@@ -4190,9 +6482,9 @@ textarea.xlarge{
 }
 .Editor .funding-row .ui-autocomplete{
 	position: absolute !important;
-    font-size: 1.2em;
+  font-size: 1.2em;
 }
-.Editor .ui-autocomplete .ui-menu-item {
+.Editor .funding-container .ui-autocomplete .ui-menu-item {
     font-size: .7em;
 }
 .Editor .funding-container .ui-helper-hidden-accessible{
@@ -4213,7 +6505,7 @@ textarea.xlarge{
 }
 
 /* ---- People / Parties ---- */
-.eml-party{
+.Editor .eml-party{
 	position: relative;
 }
 .controls-well > .party{
@@ -4230,7 +6522,7 @@ textarea.xlarge{
     margin-top: 2em;
     margin-bottom: 1em;
 }
-.eml-party .phone{
+.Editor .eml-party .phone{
 	font-size: .8em;
     padding: 5px;
     height: 3em;
@@ -4312,7 +6604,6 @@ textarea.xlarge{
 .metadata-container .section .text-container {
     padding-left: 0px;
 }
-
 
 /* ---- Taxon Coverage ---- */
 .root-taxonomic-classification-container .notification{
@@ -4404,13 +6695,19 @@ textarea.xlarge{
 .metadata-container .party-details,
 .metadata-container .method-step{
 	width: calc(100% - 20px - 1em);
+  min-height: 30px;
 }
-
+.taxa input,
+.pubDate input,
+.party-details input{
+  min-height: 30px;
+}
 /** Locations section **/
 .locations .coord{
 	width: 5em;
     padding: 5px;
     font-size: .9em;
+  min-height: 30px;
 }
 .locations-table{
 	border: 1px solid #DDD;

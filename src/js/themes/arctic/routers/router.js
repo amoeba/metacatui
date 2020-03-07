@@ -4,23 +4,30 @@
 define(['jquery', 'underscore', 'backbone'],
 function ($, _, Backbone) {
 
-	// MetacatUI Router
-	// ----------------
-	var UIRouter = Backbone.Router.extend({
+  /**
+  * @class UIRouter
+  * @classdesc MetacatUI Router
+  * @extends Backbone.Router
+  * @constructor
+  */
+	var UIRouter = Backbone.Router.extend(
+    /** @lends UIRouter.prototype */{
 		routes: {
 			''                          : 'renderData',    // the default route
-			'data/my-data(/page/:page)' : 'renderMyData',    // data search page
-			'data(/mode=:mode)(/query=:query)(/page/:page)' : 'renderData',    // data search page
-			'profile(/*username)(/s=:section)(/s=:subsection)' : 'renderProfile',
-			'my-profile(/s=:section)(/s=:subsection)' : 'renderMyProfile',
-			'external(/*url)'           : 'renderExternal', // renders the content of the given url in our UI
-			'signout'					: 'logout',
-			'signin'					: 'renderSignIn',
-			"signinsuccess"             : "renderSignInSuccess",
-			'share(/*pid)'              : 'renderEditor', // registry page
-			'submit(/*pid)'             : 'renderEditor', // registry page
-			'quality(/s=:suiteId)(/:pid)' : 'renderMdqRun', // MDQ page
-			'api(/:anchorId)'           : 'renderAPI'       // API page
+			'data/my-data(/page/:page)(/)' : 'renderMyData',    // data search page
+			'data(/mode=:mode)(/query=:query)(/page/:page)(/)' : 'renderData',    // data search page
+			'profile(/*username)(/s=:section)(/s=:subsection)(/)' : 'renderProfile',
+			'my-profile(/s=:section)(/s=:subsection)(/)' : 'renderMyProfile',
+			'external(/*url)(/)'           : 'renderExternal', // renders the content of the given url in our UI
+			'signout(/)'					: 'logout',
+			'signin(/)'					: 'renderSignIn',
+			"signinsuccess(/)"             : "renderSignInSuccess",
+			'share(/*pid)(/)'              : 'renderEditor', // registry page
+			'submit(/*pid)(/)'             : 'renderEditor', // registry page
+			'quality(/s=:suiteId)(/:pid)(/)' : 'renderMdqRun', // MDQ page
+			'api(/:anchorId)(/)'           : 'renderAPI',       // API page
+			'projects(/:portalId)(/:portalSection)(/)': 'renderPortal', // portal page
+      "edit/:portalTermPlural(/:portalIdentifier)(/:portalSection)(/)" : "renderPortalEditor"
 		},
 
 		helpPages: {
@@ -29,6 +36,13 @@ function ($, _, Backbone) {
 		},
 
 		initialize: function(){
+
+			// Add routes to portal dynamically using the appModel portal term
+			var portalTermPlural = MetacatUI.appModel.get("portalTermPlural");
+			this.route( portalTermPlural + "(/:portalId)(/:portalSection)(/)",
+									["portalId", "portalSection"], this.renderPortal
+								);
+
 			this.listenTo(Backbone.history, "routeNotFound", this.navigateToDefault);
 
 			// This route handler replaces the route handler we had in the
@@ -78,7 +92,7 @@ function ($, _, Backbone) {
 		renderAPI: function (anchorId) {
 			this.routeHistory.push("api");
 
-			appModel.set('anchorId', anchorId);
+			MetacatUI.appModel.set('anchorId', anchorId);
 			var options = {
 					pageName: "api",
 					anchorId: anchorId
@@ -106,10 +120,8 @@ function ($, _, Backbone) {
 				MetacatUI.appModel.set('page', page-1);
 
 			//Check for a query URL parameter
-			if((typeof query !== "undefined") && query){
-				var customQuery = MetacatUI.appSearchModel.get('additionalCriteria');
-				customQuery.push(query);
-				MetacatUI.appSearchModel.set('additionalCriteria', customQuery);
+			if((typeof query !== "undefined") && query){;
+				MetacatUI.appSearchModel.set('additionalCriteria', [query]);
 			}
 
 			if(!MetacatUI.appView.dataCatalogView){
@@ -211,7 +223,7 @@ function ($, _, Backbone) {
 
 			var viewChoice;
 
-			if(!username || !MetacatUI.appModel.get("userProfiles")){
+			if(!username || !MetacatUI.appModel.get("enableUserProfiles")){
 				this.routeHistory.push("summary");
 
 				if(!MetacatUI.appView.statsView){
@@ -268,24 +280,24 @@ function ($, _, Backbone) {
     */
 		renderEditor: function (pid) {
 
-			//If there is no EditorView yet, create one
-			if( ! MetacatUI.appView.editorView ){
+			//If there is no EML211EditorView yet, create one
+			if( ! MetacatUI.appView.eml211EditorView ){
 
 				var router = this;
 
-				//Load the EditorView file
-				require(['views/EditorView'], function(EditorView) {
+				//Load the EML211EditorView file
+				require(['views/metadata/EML211EditorView'], function(EML211EditorView) {
 					//Add the submit route to the router history
 					router.routeHistory.push("submit");
 
-					//Create a new EditorView
-					MetacatUI.appView.editorView = new EditorView({pid: pid});
+					//Create a new EML211EditorView
+					MetacatUI.appView.eml211EditorView = new EML211EditorView({pid: pid});
 
 					//Set the pid from the pid given in the URL
-					MetacatUI.appView.editorView.pid = pid;
+					MetacatUI.appView.eml211EditorView.pid = pid;
 
-					//Render the EditorView
-					MetacatUI.appView.showView(MetacatUI.appView.editorView);
+					//Render the EML211EditorView
+					MetacatUI.appView.showView(MetacatUI.appView.eml211EditorView);
 				});
 
 			}
@@ -293,16 +305,50 @@ function ($, _, Backbone) {
 
 
 					//Set the pid from the pid given in the URL
-					MetacatUI.appView.editorView.pid = pid;
+					MetacatUI.appView.eml211EditorView.pid = pid;
 
 					//Add the submit route to the router history
 					this.routeHistory.push("submit");
 
 					//Render the Editor View
-					MetacatUI.appView.showView(MetacatUI.appView.editorView);
+					MetacatUI.appView.showView(MetacatUI.appView.eml211EditorView);
 
 			}
 		},
+
+    /**
+    * Renders the PortalEditorView
+    * @param {string} [portalTermPlural] - This should match the `portalTermPlural` configured in the AppModel.
+    * @param {string} [portalIdentifier] - The id or labebl of the portal
+		* @param {string} [portalSection] - The name of the section within the portal to navigate to (e.g. "data")
+    */
+    renderPortalEditor: function(portalTermPlural, portalIdentifier, portalSection){
+
+      //If the user navigated to a route with a portal term other than the one supported, then this is not a portal editor route.
+      if( portalTermPlural != MetacatUI.appModel.get("portalTermPlural") ){
+        this.navigateToDefault();
+        return;
+      }
+
+			// Add the overall class immediately so the navbar is styled correctly right away
+      $("body").addClass("Editor")
+               .addClass("Portal");
+      // Look up the portal document seriesId by its registered name if given
+      if ( portalSection ) {
+        this.routeHistory.push("edit/"+ MetacatUI.appModel.get("portalTermPlural") +"/" + portalIdentifier + "/" + portalSection);
+      }
+      else{
+        this.routeHistory.push("edit/"+ MetacatUI.appModel.get("portalTermPlural") +"/" + portalIdentifier);
+      }
+
+      require(['views/portals/editor/PortalEditorView'], function(PortalEditorView){
+        MetacatUI.appView.portalEditorView = new PortalEditorView({
+            portalIdentifier: portalIdentifier,
+            activeSectionLabel: portalSection,
+        });
+        MetacatUI.appView.showView(MetacatUI.appView.portalEditorView);
+      });
+    },
 
 		renderMdqRun: function (suiteId, pid) {
 			this.routeHistory.push("quality");
@@ -394,6 +440,78 @@ function ($, _, Backbone) {
 				MetacatUI.appView.externalView.url = url;
 				MetacatUI.appView.showView(MetacatUI.appView.externalView);
 			}
+		},
+
+    /**
+     * Render the portal view based on the given name, id, or section
+     */
+     renderPortal: function(label, portalSection) {
+			 // Add the overall class immediately so the navbar is styled correctly right away
+ 			 $("body").addClass("PortalView");
+       // Look up the portal document seriesId by its registered name if given
+       if ( portalSection ) {
+         this.routeHistory.push(MetacatUI.appModel.get("portalTermPlural") + "/" + label + "/" + portalSection);
+       }
+       else{
+         this.routeHistory.push(MetacatUI.appModel.get("portalTermPlural") + "/" + label);
+       }
+
+       require(['views/portals/PortalView'], function(PortalView){
+         MetacatUI.appView.portalView = new PortalView({
+             label: label,
+             activeSectionLabel: portalSection
+         });
+         MetacatUI.appView.showView(MetacatUI.appView.portalView);
+       });
+     },
+
+
+		/*
+		* Gets an array of route names that are set on this router.
+		* @return {Array} - An array of route names, not including any special characters
+		*/
+		getRouteNames: function(){
+
+			var router = this;
+
+		  var routeNames = _.map(Object.keys(this.routes), function(routeName){
+
+				return router.getRouteName(routeName);
+
+			});
+
+      //The "view" and portals routes are not included in the route hash (they are set up during initialize),
+			// so we have to manually add it here.
+			routeNames.push("view");
+      if( !routeNames.includes(MetacatUI.appModel.get("portalTermPlural")) ){
+        routeNames.push(MetacatUI.appModel.get("portalTermPlural"));
+      }
+
+			return routeNames;
+
+		},
+
+		/*
+		* Gets the route name based on the route pattern given
+		* @param {string} routePattern - A string that represents the route pattern e.g. "view(/pid)"
+		* @return {string} - The name of the route without any pattern special characters e.g. "view"
+		*/
+		getRouteName: function(routePattern){
+
+			var specialChars = ["/", "(", "*", ":"];
+
+			_.each(specialChars, function(specialChar){
+
+				var substring = routePattern.substring(0, routePattern.indexOf(specialChar));
+
+				if( substring && substring.length < routePattern.length ){
+					routePattern = substring;
+				}
+
+			});
+
+			return routePattern;
+
 		},
 
 		navigateToDefault: function(){

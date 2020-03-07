@@ -1,11 +1,12 @@
-define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/AccessPolicy",
-    "collections/ObjectFormats", "md5"],
-    function($, _, NestedModel, uuid, AccessPolicy, ObjectFormats, md5){
+/* global define */
+define(['jquery', 'underscore', 'models/NestedModel', 'uuid', 'he', 'collections/AccessPolicy', 'collections/ObjectFormats', 'md5'],
+    function($, _, NestedModel, uuid, he, AccessPolicy, ObjectFormats, md5){
 
-        /*
+        /**
          A DataONEObject represents a DataONE object that has a format
          type of DATA, METADATA, or RESOURCE.  It stores the system
          metadata attributes for the object at a minimum.
+         @lends DataONEObject.prototype
         */
         var DataONEObject = NestedModel.extend({
 
@@ -22,6 +23,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                     formatId: null,
                     size: null,
                     checksum: null,
+                    originalChecksum: null,
                     checksumAlgorithm: "MD5",
                     submitter: null,
                     rightsHolder : null,
@@ -50,8 +52,8 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                     dateModified: null,
                     id: "urn:uuid:" + uuid.v4(),
                     sizeStr: null,
-                    type: null, // Data, Metadata, or DataPackage
-                    formatType: null,
+                    type: "", // Data, Metadata, or DataPackage
+                    formatType: "",
                     metadataEntity: null, // A model that represents the metadata for this file, e.g. an EMLEntity model
                     latestVersion: null,
                     isDocumentedBy: null,
@@ -73,6 +75,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                     sysMetaXML: null, // A cached original version of the fetched system metadata document
                     objectXML: null, // A cached version of the object fetched from the server
                     isAuthorized: null, // If the stated permission is authorized by the user
+                    createSeriesId: false, //If true, a seriesId will be created when this object is saved.
                     collections: [], //References to collections that this model is in
                     provSources: [],
                     provDerivations: [],
@@ -235,7 +238,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               }
 
               //Merge with the options passed to this function
-              var fetchOptions = _.extend(solrOptions, options);
+              var fetchOptions = _.extend(options, solrOptions);
             }
             else if(typeof options != "undefined"){
               //Use custom options for retreiving XML
@@ -294,9 +297,22 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                 }
               }, this);
 
+              //Save the checksum from the system metadata in a separate attribute on the model
+              sysMetaValues.originalChecksum = sysMetaValues.checksum;
+              sysMetaValues.checksum = this.defaults().checksum;
 
-              //Create a new AccessPolicy collection
-              sysMetaValues.accessPolicy = this.createAccessPolicy($(systemMetadata).find("accesspolicy"));
+              //Save the identifier as the id attribute
+              sysMetaValues.id = sysMetaValues.identifier;
+
+              //Parse the Access Policy
+              if( this.get("accessPolicy") && AccessPolicy.prototype.isPrototypeOf(this.get("accessPolicy")) ){
+                this.get("accessPolicy").parse($(systemMetadata).find("accesspolicy"));
+                sysMetaValues.accessPolicy = this.get("accessPolicy");
+              }
+              else{
+                //Create a new AccessPolicy collection, if there isn't one already.
+                sysMetaValues.accessPolicy = this.createAccessPolicy($(systemMetadata).find("accesspolicy"));
+              }
 
               return sysMetaValues;
 
@@ -306,6 +322,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               //If no objects were found in the index, mark as notFound and exit
               if(!response.response.docs.length){
                 this.set("notFound", true);
+                this.trigger("notFound");
                 return;
               }
 
@@ -454,6 +471,12 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               if ( ! this.get("fileName") ) {
                   this.setMissingFileName();
               }
+              else{
+                //Replace all non-alphanumeric characters with underscores
+                var fileNameWithoutExt = this.get("fileName").substring(0, this.get("fileName").lastIndexOf(".")),
+                    extension = this.get("fileName").substring(this.get("fileName").lastIndexOf("."), this.get("fileName").length);
+                this.set("fileName", fileNameWithoutExt.replace(/[^a-zA-Z0-9]/g, "_") + extension);
+              }
 
               if ( !this.hasUpdates() ) {
                   this.set("uploadStatus", null);
@@ -477,8 +500,22 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               //Create a FormData object to send data with our XHR
               var formData = new FormData();
 
-              //Add the identifier to the XHR data
-              formData.append("pid", this.get("id"));
+              //If this is not a new object, update the id. New DataONEObjects will have an id
+              // created during initialize.
+              if( !this.isNew() ){
+                this.updateID();
+                formData.append("pid", this.get("oldPid"));
+                formData.append("newPid", this.get("id"));
+              }
+              else{
+                //Create an ID if there isn't one
+                if( !this.get("id") ){
+                  this.set("id", "urn:uuid:" + uuid.v4());
+                }
+
+                //Add the identifier to the XHR data
+                formData.append("pid", this.get("id"));
+              }
 
               //Create the system metadata XML
               var sysMetaXML = this.serializeSysMeta();
@@ -488,14 +525,8 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               //Add the system metadata XML to the XHR data
               formData.append("sysmeta", xmlBlob, "sysmeta.xml");
 
-              if ( this.isNew() ) {
-                  // Create the new object (MN.create())
-                  formData.append("object", this.get("uploadFile"), this.get("fileName"));
-
-              } else if (this.hasContentChanges) {
-                  // Update the object (MN.update())
-                  //TODO: enable replacement of DATA objects
-              }
+              // Create the new object (MN.create())
+              formData.append("object", this.get("uploadFile"), this.get("fileName"));
 
               var model = this;
 
@@ -540,11 +571,31 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                       model.set("numSaveAttempts", 0);
                       model.set("uploadStatus", "c");
                       model.trigger("successSaving", model);
-                      model.fetch({merge: true}); // Get the newest sysmeta set by the MN
+
+                      // Get the newest sysmeta set by the MN
+                      model.fetch({
+                        merge: true,
+                        systemMetadataOnly: true
+                      });
+
                       // Reset the content changes status
                       model.set("hasContentChanges", false);
+
+                      //Reset the model isNew attribute
+                      model.set("isNew", false);
+
+                      //Set the last-calculated checksum as the original checksum
+                      model.set("originalChecksum", model.get("checksum"));
+                      model.set("checksum", model.defaults().checksum);
                   },
                   error: function(model, response, xhr){
+
+                    //Reset the identifier changes
+                    model.resetID();
+                    //Reset the checksum, if this is a model that needs to be serialized with each save.
+                    if( model.serialize ){
+                      model.set("checksum", model.defaults().checksum);
+                    }
 
                     model.set("numSaveAttempts", model.get("numSaveAttempts") + 1);
                     var numSaveAttempts = model.get("numSaveAttempts");
@@ -569,7 +620,10 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
                       model.set("errorMessage", parsedResponse);
 
+                      //Set the model status as e for error
                       model.set("uploadStatus", "e");
+
+                      //Trigger a custom event for the model save error
                       model.trigger("errorSaving", parsedResponse);
 
                       //Send this exception to Google Analytics
@@ -591,33 +645,149 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               NestedModel.prototype.save.call(this, null, requestSettings);
         },
 
-        /*
+        /**
+          * Updates the DataONEObject System Metadata to the server
+          */
+        updateSysMeta: function () {
+
+          //Update the upload status to "p" for "in progress"
+          this.set("uploadStatus", "p");
+
+          var formData = new FormData();
+
+          //Add the identifier to the XHR data
+          formData.append("pid", this.get("id"));
+
+          var sysMetaXML = this.serializeSysMeta();
+
+          //Send the system metadata as a Blob
+          var xmlBlob = new Blob([sysMetaXML], {type: 'application/xml'});
+          //Add the system metadata XML to the XHR data
+          formData.append("sysmeta", xmlBlob, "sysmeta.xml");
+
+          var model = this;
+
+          var requestSettings = {
+              url: MetacatUI.appModel.get("metaServiceUrl") + (encodeURIComponent(this.get("id"))),
+              cache: false,
+              contentType: false,
+              dataType: "text",
+              type: "PUT",
+              processData: false,
+              data: formData,
+              parse: false,
+              success: function() {
+
+                model.set("numSaveAttempts", 0);
+
+                //Fetch the system metadata from the server so we have a fresh copy of the newest sys meta.
+                model.fetch({ systemMetadataOnly: true });
+
+                //Update the upload status to "c" for "complete"
+                model.set("uploadStatus", "c");
+
+                //Trigger a custom event that the sys meta was updated
+                model.trigger("sysMetaUpdated");
+              },
+              error: function (xhr, status, statusCode) {
+
+                model.set("numSaveAttempts", model.get("numSaveAttempts") + 1);
+                var numSaveAttempts = model.get("numSaveAttempts");
+
+                if (numSaveAttempts < 3 && (statusCode == 408 || statusCode == 0)) {
+
+                    //Try saving again in 10, 40, and 90 seconds
+                    setTimeout(function () {
+                            model.updateSysMeta.call(model);
+                        },
+                        (numSaveAttempts * numSaveAttempts) * 10000);
+                } else {
+                      model.set("numSaveAttempts", 0);
+
+                      var parsedResponse = $(xhr.responseText).not("style, title").text();
+
+                      //When there is no network connection (status == 0), there will be no response text
+                      if (!parsedResponse)
+                          parsedResponse = "There was a network issue that prevented this file from updating. " +
+                              "Make sure you are connected to a reliable internet connection.";
+
+                      model.set("errorMessage", parsedResponse);
+                      model.set("uploadStatus", "e");
+
+                      //Send this exception to Google Analytics
+                      if (MetacatUI.appModel.get("googleAnalyticsKey") && (typeof ga !== "undefined")) {
+                          ga("send", "exception", {
+                              "exDescription": "DataONEObject update system metadata error: " + parsedResponse +
+                                  " | Id: " + model.get("id") + " | v. " + MetacatUI.metacatUIVersion,
+                              "exFatal": true
+                          });
+                      }
+                  }
+              }
+          }
+
+          //Add the user settings
+          requestSettings = _.extend(requestSettings, MetacatUI.appUserModel.createAjaxSettings());
+
+          //Send the XHR
+          $.ajax(requestSettings);
+        },
+
+        /**
          * Check if the current user is authorized to perform an action on this object
+         * @param {string} action - The action (read, write, or changePermission) to check
+         * if the current user has authorization to perform. This function doesn't return
+         * the result of the check, but it sends an XHR, updates this model, and triggers a change event.
          */
-        checkAuthority: function(action){
+        checkAuthority: function(action, options){
+
+          // return false - if neither PID nor SID is present to check the authority
+          if ( (this.get("id") == null)  && (this.get("seriesId") == null) ) {
+            return false;
+          }
+
+          if( typeof options == "undefined" ){
+            var options = {};
+          }
+
+          // If PID is not present - check authority with seriesId
+          var identifier = this.get("id");
+          if ( (identifier == null) ) {
+            identifier = this.get("seriesId");
+          }
+
           if(!action) var action = "changePermission";
 
           var authServiceUrl = MetacatUI.appModel.get('authServiceUrl');
           if(!authServiceUrl)
             return false;
 
-          var model = this;
+          var onSuccess = options.onSuccess || function(data, textStatus, xhr) {
+                model.set("isAuthorized", true);
+                model.trigger("change:isAuthorized");
+              },
+              onError = options.onError || function(xhr, textStatus, errorThrown){
+                if(errorThrown == 404){
+                  model.set("notFound", true);
+                  model.trigger("notFound");
+                }
+                else{
+                  model.set("isAuthorized", false);
+                }
+              };
 
+          var model = this;
           var requestSettings = {
-            url: authServiceUrl + encodeURIComponent(this.get("id")) + "?action=" + action,
+            url: authServiceUrl + encodeURIComponent(identifier) + "?action=" + action,
             type: "GET",
-            success: function(data, textStatus, xhr) {
-              model.set("isAuthorized", true);
-            },
-            error: function(xhr, textStatus, errorThrown) {
-              model.set("isAuthorized", false);
-            }
+            success: onSuccess,
+            error: onError
           }
           $.ajax(_.extend(requestSettings, MetacatUI.appUserModel.createAjaxSettings()));
 
         },
 
-        serializeSysMeta: function(options){
+        serializeSysMeta: function(){
             //Get the system metadata XML that currently exists in the system
             var sysMetaXML = this.get("sysMetaXML"), // sysmeta as string
                 xml, // sysmeta as DOM object
@@ -645,15 +815,43 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             xml.find("submitter").text(this.get("submitter") || MetacatUI.appUserModel.get("username"));
             xml.find("formatid").text(this.get("formatId") || this.getFormatId());
 
+            //If there is a seriesId, add it
+            if( this.get("seriesId") ){
+              //Get the seriesId XML node
+              var seriesIdNode = xml.find("seriesId");
+
+              //If it doesn't exist, create one
+              if( !seriesIdNode.length ){
+                seriesIdNode = $(document.createElement("seriesid"));
+                xml.find("identifier").before(seriesIdNode);
+              }
+
+              //Add the seriesId string to the XML node
+              seriesIdNode.text( this.get("seriesId") );
+            }
+
             //If there is no size, get it
             if( !this.get("size") && this.get("uploadFile")){
               this.set("size", this.get("uploadFile").size);
             }
 
-            xml.find("size").text(this.get("size"));
+            //Get the size of the file, if there is one
+            if( this.get("uploadFile") ){
+              xml.find("size").text( this.get("uploadFile").size );
+            }
+            //Otherwise, use the last known size
+            else{
+              xml.find("size").text(this.get("size"));
+            }
 
             //Update the checksum and checksum algorithm
-            xml.find("checksum").text(this.get("checksum"));
+            if( !this.get("checksum") && this.get("originalChecksum") ){
+              xml.find("checksum").text(this.get("originalChecksum"));
+            }
+            else{
+              xml.find("checksum").text(this.get("checksum"));
+            }
+
             xml.find("checksum").attr("algorithm", this.get("checksumAlgorithm"));
 
             //Update the rightsholder
@@ -723,9 +921,6 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
                 xml.find("archived").text(this.get("archived") || "false");
                 xml.find("dateuploaded").text(this.get("dateUploaded") || new Date().toISOString());
-                //  xml.find("datesysmetadatamodified").text(new Date().toISOString());
-                xml.find("originmembernode").text(this.get("originMemberNode") || MetacatUI.nodeModel.get("currentMemberNode"));
-                xml.find("authoritativemembernode").text(this.get("authoritativeMemberNode") || MetacatUI.nodeModel.get("currentMemberNode"));
 
                 //Get the filename node
                 fileNameNode = xml.find("filename");
@@ -733,7 +928,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                 //If the filename node doesn't exist, then create one
                 if( ! fileNameNode.length ){
                   fileNameNode = $(document.createElement("filename"));
-                  xml.find("authoritativemembernode").after(fileNameNode);
+                  xml.find("dateuploaded").after(fileNameNode);
                 }
 
                 //Set the object file name
@@ -846,8 +1041,6 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                   '    <checksum />',
                   '    <submitter />',
                   '    <rightsholder />',
-                  '    <originmembernode />',
-                  '    <authoritativemembernode />',
                   '    <filename />',
                   '</d1_v2.0:systemmetadata>'
               );
@@ -885,8 +1078,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             var self = this;
             this.listenTo(accessPolicy, "change update", function(){
               self.trigger("change");
-              this.set("hasContentChanges", true);
-              this.updateUploadStatus();
+              this.addToUploadQueue();
 
             });
 
@@ -899,13 +1091,19 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
             //Set the old identifier
             var oldPid = this.get("id"),
-                    selfDocuments,
-                    selfDocumentedBy,
-                    documentedModels,
-                    documentedModel,
-                    index;
+                selfDocuments,
+                selfDocumentedBy,
+                documentedModels,
+                documentedModel,
+                index;
 
+            //Save the current id as the old pid
             this.set("oldPid", oldPid);
+
+            //Create a new seriesId, if there isn't one, and if this model specifies that one is required
+            if( !this.get("seriesId") && this.get("createSeriesId") ){
+              this.set("seriesId", "urn:uuid:" + uuid.v4());
+            }
 
             // Check to see if the old pid documents or is documented by itself
             selfDocuments = _.contains(this.get("documents"), oldPid);
@@ -916,7 +1114,12 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
               this.set("id", id);
 
             } else {
-              this.set("id", "urn:uuid:" + uuid.v4());
+              if( this.get("type") == "DataPackage" ){
+                this.set("id", "resource_map_urn:uuid:" + uuid.v4());
+              }
+              else{
+                this.set("id", "urn:uuid:" + uuid.v4());
+              }
             }
 
             // Remove the old pid from the documents list if present
@@ -1010,11 +1213,11 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             return !(newSysMeta == oldSysMeta);
           },
 
-        /*
-         * Set the changed flag on any system metadata or content attribute changes,
-         * and set the hasContentChanges flag on content changes only
-         */
-        handleChange: function(event, model) {
+          /*
+             Set the changed flag on any system metadata or content attribute changes,
+             and set the hasContentChanges flag on content changes only
+           */
+          handleChange: function(event, model) {
             // Handle only change events
             if ( typeof event !== "string" ) {
                 return;
@@ -1036,13 +1239,10 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                     return;
                 }
             }
-            console.log(event);
 
-            if ( !model ) {
-                var model = this;
-            }
+            if(!model) var model = this;
 
-            var sysMetaAttrs = ["serialVersion", "identifier", "formatId", "size", "checksum",
+            var sysMetaAttrs = ["serialVersion", "identifier", "formatId", "formatType", "size", "checksum",
                 "checksumAlgorithm", "submitter", "rightsHolder", "accessPolicy", "replicationAllowed",
                 "replicationPolicy", "obsoletes", "obsoletedBy", "archived", "dateUploaded", "dateSysMetadataModified",
                 "originMemberNode", "authoritativeMemberNode", "replica", "seriesId", "mediaType", "fileName"],
@@ -1059,13 +1259,14 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                     MetacatUI.rootDataPackage.packageModel &&
                     ! MetacatUI.rootDataPackage.packageModel.get("changed") &&
                     model.get("synced") ) {
-                        MetacatUI.rootDataPackage.packageModel.set("changed", true);
+
+                    MetacatUI.rootDataPackage.packageModel.set("changed", true);
                 }
+
                 // And save the draft change if there is a collection
                 if ( this.collection && this.collection.saveDraft ) {
                     this.collection.saveDraft();
                 }
-
             }
 
             // And get a list of all changed content attributes
@@ -1073,27 +1274,35 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
             if ( changedContentAttrs.length > 0 && !this.get("hasContentChanges") && model.get("synced") ) {
                 this.set("hasContentChanges", true);
-                    this.updateUploadStatus(model);
-              }
-        },
-
-            /* A DataONE object is new if dateUploaded is not null and synced is true */
-
-          isNew: function(){
-            //Check if there is an upload date that was retrieved from the server
-            return ( this.get("dateUploaded") === null  && this.get("synced") );
+                this.addToUploadQueue();
+            }
           },
 
-        /*
-         * Updates the upload status attribute on this model and marks the collection as changed
-         */
-        updateUploadStatus: function(){
+          /**
+          * Returns true if this DataONE object is new. A DataONE object is new
+          * if there is no upload date and it's been synced (i.e. been fetched)
+          * @return {boolean}
+          */
+          isNew: function(){
+            //Check if there is an upload date that was retrieved from the server
+            return ( this.get("dateUploaded") === this.defaults().dateUploaded &&
+                     this.get("synced") );
+          },
+
+          /**
+           * Updates the upload status attribute on this model and marks the collection as changed
+           */
+          addToUploadQueue: function(){
+
+            if( !this.get("synced") ){
+              return;
+            }
 
             // Add this item to the queue
-            if((this.get("uploadStatus") == "c") || (this.get("uploadStatus") == "e") || 
+            if((this.get("uploadStatus") == "c") || (this.get("uploadStatus") == "e") ||
                 !this.get("uploadStatus")) {
                 this.set("uploadStatus", "q");
-                
+
                 // Mark each DataPackage collection this model is in as changed
                 _.each(this.get("collections"), function(collection) {
                     if (collection.packageModel) {
@@ -1157,9 +1366,11 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             //If there is no system metadata, then retrieve it first
             if(!this.get("sysMetaXML")){
               this.once("sync", this.findLatestVersion);
+              this.once("systemMetadataSync", this.findLatestVersion);
               this.fetch({
                 url: MetacatUI.appModel.get("metaServiceUrl") + encodeURIComponent(this.get("id")),
-                dataType: "text"
+                dataType: "text",
+                systemMetadataOnly: true
               });
               return;
             }
@@ -1173,6 +1384,15 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             //If this isn't obsoleted by anything, then there is no newer version
             if(!possiblyNewer || typeof latestVersion != "string"){
               this.set("latestVersion", latestVersion);
+
+              //Trigger an event that will fire whether or not the latestVersion
+              // attribute was actually changed
+              this.trigger("latestVersionFound", this);
+
+              //Remove the listeners now that we found the latest version
+              this.stopListening("sync", this.findLatestVersion);
+              this.stopListening("systemMetadataSync", this.findLatestVersion);
+
               return;
             }
 
@@ -1188,17 +1408,26 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                 var obsoletedBy = $(data).find("obsoletedBy").text();
 
                 //If there is an even newer version, then get it and rerun this function
-                if(obsoletedBy)
+                if(obsoletedBy){
                   model.findLatestVersion(possiblyNewer, obsoletedBy);
+                }
                 //If there isn't a newer version, then this is it
-                else
+                else{
                   model.set("latestVersion", possiblyNewer);
+                  model.trigger("latestVersionFound", model);
+
+                  //Remove the listeners now that we found the latest version
+                  model.stopListening("sync", model.findLatestVersion);
+                  model.stopListening("systemMetadataSync", model.findLatestVersion);
+                }
 
               },
               error: function(xhr){
                 //If this newer version isn't accessible, link to the latest version that is
-                if(xhr.status == "401")
+                if(xhr.status == "401"){
                   model.set("latestVersion", latestVersion);
+                  model.trigger("latestVersionFound", model);
+                }
               }
             }
 
@@ -1266,6 +1495,10 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
             }, this);
 
+            //Take each XML node text value and decode any XML entities
+            var regEx = new RegExp("\&[0-9a-zA-Z]+\;", "g");
+            xmlString = xmlString.replace(regEx, function(match){ return he.encode(he.decode(match)); });
+
             return xmlString;
           },
 
@@ -1316,8 +1549,22 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                 extension = objectFormats[0].get("extension");
             }
 
-            filename = (Array.isArray(this.get("title")) && this.get("title").length)? this.get("title")[0] : this.get("id");
-            filename.replace(/[ :"'\/\\]/g, "-").replace(/[-]+/g, "-");
+            //Science metadata file names will use the title
+            if( this.get("type") == "Metadata" ){
+              filename = (Array.isArray(this.get("title")) && this.get("title").length)? this.get("title")[0] : this.get("id");
+            }
+            //Resource maps will use a "resource_map_" prefix
+            else if( this.get("type") == "DataPackage" ){
+              filename = "resource_map_" + this.get("id");
+              extension = ".rdf.xml";
+            }
+            //All other object types will just use the id
+            else{
+              filename = this.get("id");
+            }
+
+            //Replace all non-alphanumeric characters with underscores
+            filename = filename.replace(/[^a-zA-Z0-9]/g, "_");
 
             if ( typeof extension !== "undefined" ) {
               filename = filename + "." + extension;
@@ -1326,8 +1573,24 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
             this.set("fileName", filename);
           },
 
-          getXMLSafeID: function(){
-            var id = this.get("id");
+          /**
+          * Creates a URL for viewing more information about this object
+          * @return {string}
+          */
+          createViewURL: function(){
+            return MetacatUI.root + "/view/" + (this.get("seriesId") || this.get("id"));
+          },
+
+          /**
+          * Converts the identifier string to a string safe to use in an XML id attribute
+          * @param {string} [id] - The ID string
+          * @return {string} - The XML-safe string
+          */
+          getXMLSafeID: function(id){
+
+            if(typeof id == "undefined"){
+              var id = this.get("id");
+            }
 
             //Replace XML id attribute invalid characters and patterns in the identifier
             id = id.replace(/</g, "-").replace(/:/g, "-").replace(/&[a-zA-Z0-9]+;/g);
@@ -1384,7 +1647,7 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
 
             //Determine the type via provONE
             var instanceOfClass = this.get("prov_instanceOfClass");
-            if(typeof instanceOfClass !== "undefined" && instanceOfClass.length){
+            if(typeof instanceOfClass !== "undefined" && Array.isArray(instanceOfClass) && instanceOfClass.length){
               var programClass = _.filter(instanceOfClass, function(className){
                 return (className.indexOf("#Program") > -1);
               });
@@ -1477,12 +1740,13 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
           },
 
           isSoftware: function(){
-            //The list of formatIds that are images
+            //The list of formatIds that are programs
             var softwareIds =  ["text/x-python",
                       "text/x-rsrc",
                       "text/x-matlab",
                       "text/x-sas",
-                      "application/R"];
+                      "application/R",
+                      "application/x-ipynb+json"];
             //Does this data object match one of these IDs?
             if(_.indexOf(softwareIds, this.get('formatId')) == -1) return false;
             else return true;
@@ -1604,7 +1868,52 @@ define(["jquery", "underscore", "models/NestedModel", "uuid", "collections/Acces
                 return calculated;
 
             }
-        }
+        },
+
+        /**
+    		 * Checks if the pid or sid or given string is a DOI
+    		 *
+    		 * @param {string} customString - Optional. An identifier string to check instead of the id and seriesId attributes on the model
+    		 * @returns {boolean} True if it is a DOI
+    		 */
+    		isDOI: function(customString) {
+    			var DOI_PREFIXES = ["doi:10.", "http://dx.doi.org/10.", "http://doi.org/10.", "http://doi.org/doi:10.",
+    				"https://dx.doi.org/10.", "https://doi.org/10.", "https://doi.org/doi:10."],
+    				  DOI_REGEX = new RegExp(/^10.\d{4,9}\/[-._;()/:A-Z0-9]+$/i);;
+
+    			//If a custom string is given, then check that instead of the seriesId and id from the model
+    			if( typeof customString == "string" ){
+    				for (var i=0; i < DOI_PREFIXES.length; i++) {
+    					if (customString.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+    						return true;
+    				}
+
+    				//If there is no DOI prefix, check for a DOI without the prefix using a regular expression
+    				if( DOI_REGEX.test(customString) ){
+    					return true;
+    				}
+
+    			}
+    			else{
+    				var seriesId = this.get("seriesId"),
+    						pid      = this.get("id");
+
+    				for (var i=0; i < DOI_PREFIXES.length; i++) {
+    					if (seriesId && seriesId.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+    						return true;
+    					else if (pid && pid.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+    						return true;
+    				}
+
+    				//If there is no DOI prefix, check for a DOI without the prefix using a regular expression
+    				if( DOI_REGEX.test(seriesId) || DOI_REGEX.test(pid) ){
+    					return true;
+    				}
+
+    			}
+
+    			return false;
+    		}
     },
     {
       /* Generate a unique identifier to be used as an XML id attribute */

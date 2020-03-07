@@ -20,12 +20,15 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 		bioportalSearch: function(request, response, localValues, allValues) {
 
 			// make sure we have something to lookup
-			if (!MetacatUI.appModel.get('bioportalSearchUrl')) {
+			if (!MetacatUI.appModel.get('bioportalAPIKey')) {
 				response(localValues);
 				return;
 			}
 
-			var query = MetacatUI.appModel.get('bioportalSearchUrl') + request.term;
+			var query = MetacatUI.appModel.get('bioportalSearchUrl') +
+                  "?q=" + request.term +
+                  "&apikey=" + MetacatUI.appModel.get("bioportalAPIKey") +
+                  "&ontologies=ECSO&pagesize=1000&suggest=true";
 			var availableTags = [];
 			$.get(query, function(data, textStatus, xhr) {
 
@@ -79,7 +82,7 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 		bioportalExpand: function(term) {
 
 			// make sure we have something to lookup
-			if (!MetacatUI.appModel.get('bioportalSearchUrl')) {
+			if (!MetacatUI.appModel.get('bioportalAPIKey')) {
 				response(null);
 				return;
 			}
@@ -87,7 +90,10 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 			var terms = [];
 			var countdown = 0;
 
-			var query = MetacatUI.appModel.get('bioportalSearchUrl') + term;
+			var query = MetacatUI.appModel.get('bioportalSearchUrl') +
+                  "?q=" + term +
+                  "&apikey=" + MetacatUI.appModel.get("bioportalAPIKey") +
+                  "&ontologies=ECSO&pagesize=1000&suggest=true";;
 			$.ajax(
 			{
 				url: query,
@@ -150,11 +156,14 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 			}
 
 			// make sure we have something to lookup
-			if (!MetacatUI.appModel.get('bioportalSearchUrl')) {
+			if (!MetacatUI.appModel.get('bioportalAPIKey')) {
 				return;
 			}
 
-			var query = MetacatUI.appModel.get('bioportalSearchUrl') + encodeURIComponent(uri);
+			var query = MetacatUI.appModel.get('bioportalSearchUrl') +
+                  "?q=" + encodeURIComponent(uri) +
+                  "&apikey=" + MetacatUI.appModel.get("bioportalAPIKey") +
+                  "&ontologies=ECSO&pagesize=1000&suggest=true";
 			var availableTags = [];
 			var model = this;
 			$.get(query, function(data, textStatus, xhr) {
@@ -257,11 +266,6 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 				people = [];
 			}
 
-			// make sure we have something to lookup
-			if (!MetacatUI.appModel.get('bioportalSearchUrl')) {
-				return;
-			}
-
 			var query = MetacatUI.appModel.get('orcidBaseUrl')  + uri.substring(uri.lastIndexOf("/"));
 			var model = this;
 			$.get(query, function(data, status, xhr) {
@@ -287,12 +291,6 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 		 * Supplies search results for ORCiDs to autocomplete UI elements
 		 */
 		orcidSearch: function(request, response, more, ignore) {
-
-			// make sure we have something to lookup
-			if (!MetacatUI.appModel.get('bioportalSearchUrl')) {
-				response(more);
-				return;
-			}
 
 			var people = [];
 
@@ -427,7 +425,142 @@ define(['jquery', 'jqueryui', 'underscore', 'backbone'],
 
 			//Send the query
 			$.ajax(requestSettings);
-		}
+		},
+
+    getAccountsAutocomplete: function(request, response){
+      var searchTerm = $.ui.autocomplete.escapeRegex(request.term);
+
+      //Only search after 2 characters or more
+      if(searchTerm.length < 2)
+        return;
+
+      var url = MetacatUI.appModel.get("accountsUrl") + "?query=" + searchTerm;
+
+      // Send the AJAX request as a JSONP data type since it will be cross-origin
+      var requestSettings = {
+        url: url,
+        success: function(data, textStatus, xhr) {
+
+          if(!data)
+            return [];
+
+          //If an XML doc was not returned from the server, then try to parse the response as XML
+          if( !XMLDocument.prototype.isPrototypeOf(data) ){
+            try{
+              data = $.parseXML(data);
+            }
+            catch(e){
+              //If the parsing XML failed, exit now
+              console.error("The accounts service did not return valid XML.", e);
+              return;
+            }
+          }
+
+          var list = [];
+
+          _.each($(data).children(/.+subjectInfo/).children(), function(accountNode, i){
+
+            var name = "";
+
+            if( $(accountNode).children("givenName").length ){
+              name = $(accountNode).children("givenName").text() + " " + $(accountNode).children("familyName").text()
+            }
+            else{
+              name = $(accountNode).children("groupName").text();
+            }
+
+            if( !name ){
+              name = $(accountNode).children("subject").text();
+            }
+
+            list.push({
+              value: $(accountNode).children("subject").text(),
+              label: name + "  (" + $(accountNode).children("subject").text() + ")"
+            });
+          });
+
+          var term = $.ui.autocomplete.escapeRegex(request.term)
+            , startsWithMatcher = new RegExp("^" + term, "i")
+            , startsWith = $.grep(list, function(value) {
+                return startsWithMatcher.test(value.label || value.value || value);
+            })
+            , containsMatcher = new RegExp(term, "i")
+            , contains = $.grep(list, function (value) {
+                return $.inArray(value, startsWith) < 0 &&
+                    containsMatcher.test(value.label || value.value || value);
+            });
+
+          response(startsWith.concat(contains));
+        }
+      }
+
+      //Send the query
+      $.ajax(requestSettings);
+    },
+
+    /**
+    * Calls the monitor/status DataONE MN API and gets the size of the index queue.
+    * @param {function} [onSuccess]
+    * @param {function} [onError]
+    */
+    getSizeOfIndexQueue: function(onSuccess, onError){
+
+      try{
+
+        if( !MetacatUI.appModel.get("monitorStatusUrl") ){
+          if( typeof onSuccess == "function" ){
+            onSuccess();
+          }
+          else{
+            //Trigger a custom event for the size of the index queue.
+            this.trigger("sizeOfQueue", -1);
+          }
+
+          return false;
+        }
+
+        var model = this;
+
+        //Check if there is an indexing queue, because this model may still be indexing
+        var requestSettings = {
+          url: MetacatUI.appModel.get("monitorStatusUrl"),
+          type: "GET",
+          error: function(){
+            if( typeof onError == "function" ){
+              onError();
+            }
+          },
+          success: function(data){
+
+            var sizeOfQueue = parseInt($(data).find("status > index > sizeOfQueue").text());
+
+            if(sizeOfQueue > 0 || sizeOfQueue == 0){
+              //Trigger a custom event for the size of the index queue.
+              model.trigger("sizeOfQueue", sizeOfQueue);
+
+              if( typeof onSuccess == "function" ){
+                onSuccess(sizeOfQueue);
+              }
+            }
+            else{
+              if( typeof onError == "function" ){
+                onError();
+              }
+            }
+          }
+        }
+
+        $.ajax(_.extend(requestSettings, MetacatUI.appUserModel.createAjaxSettings()));
+      }
+      catch(e){
+        console.error(e);
+
+        if( typeof onError == "function" ){
+          onError();
+        }
+
+      }
+    }
 
 	});
 	return LookupModel;

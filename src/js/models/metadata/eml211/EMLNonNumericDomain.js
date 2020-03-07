@@ -3,11 +3,14 @@ define(["jquery", "underscore", "models/NestedModel",
     function($, _, NestedModel, DataONEObject) {
 
         /**
-         * EMLNonNumericDomain represents the measurement scale of a nominal
+         * @class EMLNonNumericDomain
+         * @classdesc EMLNonNumericDomain represents the measurement scale of a nominal
          * or ordinal measurement scale attribute, and is an extension of
          * EMLMeasurementScale.
-         *
          * @see https://github.com/NCEAS/eml/blob/master/eml-attribute.xsd
+         * @extends NestedModel
+         * @lends EMLNonNumericDomain.prototype
+         * @constructor
          */
         var EMLNonNumericDomain = NestedModel.extend({
 
@@ -26,6 +29,7 @@ define(["jquery", "underscore", "models/NestedModel",
              * The map of lower case to camel case node names
              * needed to deal with parsing issues with $.parseHTML().
              * Use this until we can figure out issues with $.parseXML().
+             * @type {object}
              */
             nodeNameMap: {
                 "nonnumericdomain": "nonNumericDomain",

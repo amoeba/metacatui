@@ -4,23 +4,28 @@
 define(['jquery',	'underscore', 'backbone'],
 function ($, _, Backbone) {
 
-	// MetacatUI Router
-	// ----------------
-	var UIRouter = Backbone.Router.extend({
+  /**
+  * @class UIRouter
+  * @classdesc MetacatUI Router
+  * @extends Backbone.Router
+  * @constructor
+  */
+	var UIRouter = Backbone.Router.extend(
+    /** @lends UIRouter.prototype */{
 		routes: {
 			''                          : 'navigateToDefault',         // the default route
-			'about(/:anchorId)'         : 'renderAbout',        // about page anchors
-			'help(/:page)(/:anchorId)'  : 'renderHelp',
-			'data/my-data(/page/:page)' : 'renderMyData',    // data search page
-			'data(/mode=:mode)(/query=:query)(/page/:page)' : 'renderData',    // data search page
-			'profile(/*username)(/s=:section)(/s=:subsection)' : 'renderProfile',
-			'my-profile(/s=:section)(/s=:subsection)' : 'renderMyProfile',
-			'my-account'                   : 'renderUserSettings',
-			'external(/*url)'           : 'renderExternal',     // renders the content of the given url in our UI
-			'quality(/s=:suiteId)(/:pid)' : 'renderMdqRun', // MDQ page
-			'logout'                    : 'logout',          // logout the user
-			'signout'                   : 'logout',          // logout the user
-			'signin'					: 'renderTokenSignIn',
+			'about(/:anchorId)(/)'         : 'renderAbout',        // about page anchors
+			'help(/:page)(/:anchorId)(/)'  : 'renderHelp',
+			'data/my-data(/page/:page)(/)' : 'renderMyData',    // data search page
+			'data(/mode=:mode)(/query=:query)(/page/:page)(/)' : 'renderData',    // data search page
+			'profile(/*username)(/s=:section)(/s=:subsection)(/)' : 'renderProfile',
+			'my-profile(/s=:section)(/s=:subsection)(/)' : 'renderMyProfile',
+			'my-account(/)'                   : 'renderUserSettings',
+			'external(/*url)(/)'           : 'renderExternal',     // renders the content of the given url in our UI
+			'quality(/s=:suiteId)(/:pid)(/)' : 'renderMdqRun', // MDQ page
+			'logout(/)'                    : 'logout',          // logout the user
+			'signout(/)'                   : 'logout',          // logout the user
+			'signin(/)'					: 'renderTokenSignIn',
 		},
 
 		helpPages: {
@@ -144,9 +149,7 @@ function ($, _, Backbone) {
 
 			//Check for a query URL parameter
 			if((typeof query !== "undefined") && query){
-				var customQuery = MetacatUI.appSearchModel.get('additionalCriteria');
-				customQuery.push(query);
-				MetacatUI.appSearchModel.set('additionalCriteria', customQuery);
+        MetacatUI.appSearchModel.set('additionalCriteria', [query]);
 			}
 
 			if(!MetacatUI.appView.dataCatalogView){
@@ -248,7 +251,7 @@ function ($, _, Backbone) {
 
 			var viewChoice;
 
-			if(!username || !MetacatUI.appModel.get("userProfiles")){
+			if(!username || !MetacatUI.appModel.get("enableUserProfiles")){
 				this.routeHistory.push("summary");
 
 				if(!MetacatUI.appView.statsView){
@@ -345,6 +348,134 @@ function ($, _, Backbone) {
 				MetacatUI.appView.externalView.url = url;
 				MetacatUI.appView.showView(MetacatUI.appView.externalView);
 			}
+		},
+
+    /**
+     * Render the portal view based on the given name, id, or section
+     */
+     renderPortal: function(portalId, portalSection) {
+        var label;
+        var portalsMap = MetacatUI.appModel.get("portalsMap");
+
+        // Look up the portal document seriesId by its registered name if given
+        if ( portalId ) {
+            if ( portalsMap ) {
+                // Do a forward lookup by key
+                if ( typeof (portalsMap[portalId] ) !== "undefined" ) {
+                    label = portalId;
+                    portalId = portalsMap[portalId];
+                    // Then set the history
+                    if ( portalSection ) {
+                        this.routeHistory.push("portals/" + label + "/" + portalSection);
+                    } else {
+                        this.routeHistory.push("portals/" + label);
+                    }
+                } else {
+                    // Try a reverse lookup of the portal name by values
+                    label = _.findKey(portalsMap, function(value){
+                      return( value ==  portalId );
+                    });
+
+                    if ( typeof label !== "undefined" ) {
+                        if ( portalSection ) {
+                            this.routeHistory.push("portals/" + label + "/" + portalSection);
+                        } else {
+                            this.routeHistory.push("portals/" + label);
+                        }
+                    } else {
+
+                      //Try looking up the portal name with case-insensitive matching
+                      label = _.findKey(portalsMap, function(value, key){
+                        return( key.toLowerCase() == portalId.toLowerCase() );
+                      });
+
+                      //If a matching portal name was found, route to it
+                      if( label ){
+
+                        //Get the portal ID from the map
+                        portalId = portalsMap[label];
+
+                        // Then set the history
+                        if ( portalSection ) {
+                          this.navigate("portals/" + label + "/" + portalSection, { trigger: false, replace: true });
+                          this.routeHistory.push("portals/" + label + "/" + portalSection);
+                        } else {
+                          this.navigate("portals/" + label, { trigger: false, replace: true });
+                          this.routeHistory.push("portals/" + label);
+                        }
+                      }
+                      else{
+                        // Fall back to routing to the portal by id, not name
+                        this.routeHistory.push("portals/" + portalId);
+                      }
+                    }
+                }
+            }
+        } else {
+            // TODO: Show a PortalsView here of the Portals collection (no portalId given)
+            return;
+        }
+
+        if ( !MetacatUI.appView.portalView ) {
+          require(['views/portals/PortalView'], function(PortalView){
+            MetacatUI.appView.portalView = new PortalView({
+                          portalId: portalId,
+                          label: label,
+                          activeSectionLabel: portalSection
+                      });
+            MetacatUI.appView.showView(MetacatUI.appView.portalView);
+          });
+        } else {
+                  MetacatUI.appView.portalView.label = label;
+                  MetacatUI.appView.portalView.portalId = portalId;
+                  MetacatUI.appView.portalView.activeSectionLabel = portalSection;
+          MetacatUI.appView.showView(MetacatUI.appView.portalView);
+        }
+      },
+
+		/*
+		* Gets an array of route names that are set on this router.
+		* @return {Array} - An array of route names, not including any special characters
+		*/
+		getRouteNames: function(){
+
+			var router = this;
+
+		  var routeNames = _.map(Object.keys(this.routes), function(routeName){
+
+				return router.getRouteName(routeName);
+
+			});
+
+			//The "view" route is not included in the route hash (it is set up during initialize),
+			// so we have to manually add it here.
+			routeNames.push("view");
+
+			return routeNames;
+
+		},
+
+		/*
+		* Gets the route name based on the route pattern given
+		* @param {string} routePattern - A string that represents the route pattern e.g. "view(/pid)"
+		* @return {string} - The name of the route without any pattern special characters e.g. "view"
+		*/
+		getRouteName: function(routePattern){
+
+			var specialChars = ["/", "(", "*", ":"];
+
+			_.each(specialChars, function(specialChar){
+
+				var substring = routePattern.substring(0, routePattern.indexOf(specialChar));
+
+				if( substring && substring.length < routePattern.length ){
+					routePattern = substring;
+				}
+
+			});
+
+			return routePattern;
+
 		},
 
 		navigateToDefault: function(){

@@ -5,12 +5,14 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 
     type: "EMLText",
 
-    defaults: {
-      objectXML: null,
-      objectDOM: null,
-      parentModel: null,
-      originalText: [],
-      text: [] //The text content
+    defaults: function(){
+      return {
+        objectXML: null,
+        objectDOM: null,
+        parentModel: null,
+        originalText: [],
+        text: [] //The text content
+      }
     },
 
     initialize: function(attributes){

@@ -8,10 +8,12 @@ define(['jquery',
 		'views/SignInView',
 		'text!templates/alert.html',
 		'text!templates/appHead.html',
+    'text!templates/jsonld.txt',
 		'text!templates/app.html',
 		'text!templates/loading.html'
 	    ],
-	function($, _, Backbone, AltHeaderView, NavbarView, FooterView, SignInView, AlertTemplate, AppHeadTemplate, AppTemplate, LoadingTemplate) {
+	function($, _, Backbone, AltHeaderView, NavbarView, FooterView, SignInView,
+    AlertTemplate, AppHeadTemplate, JsonLDTemplate, AppTemplate, LoadingTemplate) {
 	'use strict';
 
 	var app = app || {};
@@ -29,6 +31,7 @@ define(['jquery',
 		template: _.template(AppTemplate),
 		alertTemplate: _.template(AlertTemplate),
 		appHeadTemplate: _.template(AppHeadTemplate),
+    jsonLDTemplate: _.template(JsonLDTemplate),
 		loadingTemplate: _.template(LoadingTemplate),
 
 		events: {
@@ -61,7 +64,11 @@ define(['jquery',
 				theme: MetacatUI.theme,
 				themeTitle: MetacatUI.themeTitle,
 				googleAnalyticsKey: MetacatUI.appModel.get("googleAnalyticsKey")
-				}));
+      }))
+      //Add the JSON-LD to the head element
+      .append($(document.createElement("script")).attr("type", "application/ld+json")
+                                                 .attr("id", "jsonld")
+                                                 .html(this.jsonLDTemplate()));
 
 			// set up the body
 			this.$el.append(this.template());
@@ -117,16 +124,28 @@ define(['jquery',
 			// close the current view
 			if (this.currentView){
 
-				if( typeof this.currentView.confirmClose == "function" ){
-					var confirmMsg = this.currentView.confirmClose();
+        //If the current view has a function to confirm closing of the view, call it
+				if( typeof this.currentView.canClose == "function" ){
 
-					if(confirmMsg){
-						var leave = confirm(confirmMsg);
-						if( !leave ){
-							MetacatUI.uiRouter.undoLastRoute();
-							return;
-						}
-					}
+          //If the user or view confirmed that the view shouldn't be closed, then don't navigate to the next route
+          if( !this.currentView.canClose() ){
+
+            //Get a confirmation message from the view, or use a default one
+            if( typeof this.currentView.getConfirmCloseMessage == "function" ){
+              var confirmMessage = this.currentView.getConfirmCloseMessage();
+            }
+            else{
+              var confirmMessage = "Leave this page?";
+            }
+
+            //Show a confirm alert to the user and wait for their response
+            var leave = confirm(confirmMessage);
+            //If they clicked Cancel, then don't navigate to the next route
+            if(!leave){
+              MetacatUI.uiRouter.undoLastRoute();
+              return;
+            }
+          }
 				}
 
 				// need reference to the old/current view for the callback method
@@ -449,6 +468,39 @@ define(['jquery',
 		    }
 		    return val;
 		 },
+		 numberAbbreviator: function(number, decimalPlaces) {
+		 	if(number === 0){
+		 		return 0;
+		 	}
+            decimalPlaces = Math.pow(10,decimalPlaces);
+            var abbreviations = [ "K", "M", "B", "T" ];
+
+            // Go through the array backwards, so we do the largest first
+            for (var i=abbreviations.length-1; i>=0; i--) {
+
+                // Convert array index to "1000", "1000000", etc
+                var size = Math.pow(10,(i+1)*3);
+
+                // If the number is bigger or equal do the abbreviation
+                if(size <= number) {
+
+                    // Here, we multiply by decimalPlaces, round, and then divide by decimalPlaces.
+                    // This gives us nice rounding to a particular decimal place.
+                    number = Math.round(number*decimalPlaces/size)/decimalPlaces;
+
+                    // Handle special case where we round up to the next abbreviation
+                    if((number == 1000) && (i < abbreviations.length - 1)) {
+                        number = 1;
+                        i++;
+                    }
+
+                    // Add the letter for the abbreviation
+                    number += abbreviations[i];
+                    break;
+                }
+            }
+            return number;
+        },
 		higlightInput: function(e){
 			if(!e) return;
 
@@ -480,12 +532,6 @@ define(['jquery',
 			$("body,html").stop(true,true) //stop first for it to work in FF
 						  .animate({ scrollTop: $(pageElement).offset().top - 40 - totalOffset}, 1000);
 			return false;
-		},
-
-		//Will pop up an alert asking if the user wants to leave the page or not.
-		confirmLeave: function(e){
-			var decision = confirm("Do you want to leave this page? All information you've entered will be lost.");
-			return decision;
 		}
 
 	});

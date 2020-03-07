@@ -1,63 +1,114 @@
 ﻿/* global define */
 "use strict";
 
-define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md5",
+define(['jquery', 'underscore', 'localforage', 'backbone', 'rdflib', "uuid", "md5",
+        'collections/SolrResults',
+        'models/filters/Filter',
         'models/DataONEObject', 'models/metadata/ScienceMetadata', 'models/metadata/eml211/EML211'],
-    function($, _, Backbone, LocalForage, rdf, uuid, md5, DataONEObject, ScienceMetadata, EML211) {
+    function($, _, Backbone, LocalForage, rdf, uuid, md5, SolrResults, Filter,
+      DataONEObject, ScienceMetadata, EML211) {
 
-      /*
-       A DataPackage represents a hierarchical collection of
+      /**
+       * @class DataPackage
+       * @classdesc A DataPackage represents a hierarchical collection of
        packages, metadata, and data objects, modeling an OAI-ORE RDF graph.
        TODO: incorporate Backbone.UniqueModel
-      */
-      var DataPackage = Backbone.Collection.extend({
+       * @name DataPackage
+       * @extends Backbone.Collection
+       * @constructor
+       */
+      var DataPackage = Backbone.Collection.extend(
+        /** @lends DataPackage.prototype */{
 
-        //The name of this type of collection
+        /**
+        * The name of this type of collection
+        * @type {string}
+        */
         type: "DataPackage",
 
-        // The package identifier
+        /**
+        * The package identifier
+        * @type {string}
+        */
         id: null,
 
-        // The type of the object (DataPackage, Metadata, Data)
-        // Simple queue to enqueue file transfers. Use push() and shift()
-        // to add and remove items. If this gets to large/slow, possibly
-        // switch to http://code.stephenmorley.org/javascript/queues/
+        /**
+        * The type of the object (DataPackage, Metadata, Data)
+        * Simple queue to enqueue file transfers. Use push() and shift()
+        * to add and remove items. If this gets to large/slow, possibly
+        * switch to http://code.stephenmorley.org/javascript/queues/
+        * @type {DataPackage|Metadata|Data[]}
+        */
         transferQueue: [],
 
-        // A flag ued for the package's edit status. Can be
-        // set to false to 'lock' the package
+        /** A flag ued for the package's edit status. Can be
+        * set to false to 'lock' the package
+        * @type {boolean}
+        */
         editable: true,
 
-        // The RDF graph representing this data package
+        /**
+        * The RDF graph representing this data package
+        * @type {RDFGraph}
+        */
         dataPackageGraph: null,
 
-        //A DataONEObject representing the resource map itself
+        /**
+        * A DataONEObject representing the resource map itself
+        * @type {DataONEObject}
+        */
         packageModel: null,
 
-        // The science data identifiers associated with this
-        // data package (from cito:documents), mapped to the science metadata
-        // identifier that documents it
-        // Not to be changed after initial fetch - this is to keep track of the relationships in their original state
+        /** The science data identifiers associated with this
+        * data package (from cito:documents), mapped to the science metadata
+        * identifier that documents it
+        * Not to be changed after initial fetch - this is to keep track of the relationships in their original state
+        * @type {object}
+        */
         originalIsDocBy: {},
 
-        // An array of ids that are aggregated in the resource map on the server.
-        // Taken from the original RDF XML that was fetched from the server.
-        // Used for comparing the original aggregation with the aggregation of this collection.
+        /** An array of ids that are aggregated in the resource map on the server.
+        * Taken from the original RDF XML that was fetched from the server.
+        * Used for comparing the original aggregation with the aggregation of this collection.
+        * @type {string[]}
+        */
         originalMembers: [],
 
-        // Keep the collection sorted by model "sortOrder".  The three model types
-        // are ordered as:
-        //  Metadata: 1
-        //  Data: 2
-        //  DataPackage: 3
-        // See getMember(). We do this so that Metadata get rendered first, and Data are
-        // rendered as DOM siblings of the Metadata rows of the DataPackage table.
+        /**
+        *  Keep the collection sorted by model "sortOrder".  The three model types are ordered as:
+        *  Metadata: 1
+        *  Data: 2
+        *  DataPackage: 3
+        * See getMember(). We do this so that Metadata get rendered first, and Data are
+        * rendered as DOM siblings of the Metadata rows of the DataPackage table.
+        * @type {string}
+        */
         comparator: "sortOrder",
 
-        // The nesting level in a data package hierarchy
+        /**
+        * The nesting level in a data package hierarchy
+        * @type {number}
+        */
         nodeLevel: 0,
 
-        //Define the namespaces used in the RDF XML
+        /**
+        * The SolrResults collection associated with this DataPackage.
+        * This can be used to fetch the package from Solr by passing the 'fromIndex' option
+        * to fetch().
+        * @type {SolrResults}
+        */
+        solrResults: new SolrResults(),
+
+        /**
+        *  A Filter model that should filter the Solr index for only the
+        * objects aggregated by this package.
+        * @type {Filter}
+        */
+        filterModel: null,
+
+        /** Define the namespaces used in the RDF XML
+        * @type {object}
+        */
         namespaces: {
           RDF:     "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
           FOAF:    "http://xmlns.com/foaf/0.1/",
@@ -77,17 +128,21 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
         sourcePackages: [],
         derivationPackages: [],
         relatedModels: [],
-        provEdits: [],    // Contains provenance relationships added or deleted to this DataONEObject.
-        // Each entry is [<operation ('add' or 'delete'), <prov field name>, <object id>], i.e. ['add', 'prov_used', 'urn:uuid:5678']
+
+        /**
+        * Contains provenance relationships added or deleted to this DataONEObject.
+        * Each entry is [operation ('add' or 'delete'), prov field name, object id], i.e. ['add', 'prov_used', 'urn:uuid:5678']
+        */
+        provEdits: [],
 
         // Constructor: Initialize a new DataPackage
         initialize: function(models, options) {
             if(typeof options == "undefined")
             var options = {};
-            
+
             // Create the offline storage controller for saving and retrieving drafts
             this.drafts = LocalForage;
-            
+
             // Create an rdflib reference
             this.rdf = rdf;
 
@@ -95,7 +150,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
             this.dataPackageGraph = this.rdf.graph();
 
             //Set the id or create a new one
-            this.id = options.id || "urn:uuid:" + uuid.v4();
+            this.id = options.id || "resource_map_urn:uuid:" + uuid.v4();
 
             // Create a DataONEObject to represent this resource map
             this.packageModel = new DataONEObject({
@@ -113,6 +168,17 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
 
             }
             this.id = this.packageModel.id;
+
+            //Create a Filter for this DataPackage using the id
+            this.filterModel = new Filter({
+              fields: ["resourceMap"],
+              values: [this.id],
+              matchSubstring: false
+            });
+            //If the id is ever changed, update the id in the Filter
+            this.listenTo(this.packageModel, "change:id", function(){
+              this.filterModel.set("values", [this.packageModel.get("id")]);
+            });
 
             this.on("add", this.handleAdd);
             this.on("add", this.triggerComplete);
@@ -324,13 +390,40 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
               }
           },
 
-          /*
+          /**
            *  Overload fetch calls for a DataPackage
+           *
+           * @param {Object} [options] - Optional options for this fetch that get sent with the XHR request
+           *  @property {boolean} fetchModels - If false, this fetch will not fetch
+           *  each model in the collection. It will only get the resource map object.
+           *  @property {boolean} fromIndex - If true, the collection will be fetched from Solr rather than
+           *  fetching the system metadata of each model. Useful when you only need to retrieve limited information about
+           *  each package member. Set query-specific parameters on the `solrResults` SolrResults set on this collection.
            */
           fetch: function(options) {
 
               //Fetch the system metadata for this resource map
               this.packageModel.fetch();
+
+              if(typeof options == "object"){
+
+                //If the fetchModels property is set to false,
+                if(options.fetchModels === false){
+                  //Save the property to the Collection itself so it is accessible in other functions
+                  this.fetchModels = false;
+                  //Remove the property from the options Object since we don't want to send it with the XHR
+                  delete options.fetchModels;
+
+                  this.once("reset", this.triggerComplete);
+                }
+                //If the fetchFromIndex property is set to true
+                else if( options.fromIndex ){
+
+                  this.fetchFromIndex();
+                  return;
+
+                }
+              }
 
               //Set some custom fetch options
               var fetchOptions = _.extend({dataType: "text"}, options);
@@ -343,7 +436,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
           },
 
           /*
-           * Overload the Backbone.Collection.remove() method, also removing 
+           * Overload the Backbone.Collection.remove() method, also removing
            * from the offline store.
            */
           remove: function(models, options) {
@@ -364,14 +457,14 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
               // Then finally call super()
               return this.constructor.__super__.remove.apply(models, options);
           },
-          
+
           /*
            * An event callback used when calling LocalForage.removeItem()
            */
           handleRemoveOfflineItem: function(event) {
               // console.log("Removed an item from local storage: " + JSON.stringify(event));
           },
-          
+
           /*
            * Deserialize a Package from OAI-ORE RDF XML
            */
@@ -404,7 +497,12 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
 
                 //First, make sure we are only using one CN Base URL in the RDF or the RDF parsing will fail.
                 var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
-                response = response.replace(/cn-\S+.test.dataone.org\/cn\/v\d\/resolve/g, "cn.dataone.org/cn/v2/resolve");
+
+                var cnURLs = _.uniq(response.match(/cn\S+\.test\.dataone\.org\/cn\/v\d\/resolve|cn\.dataone\.org\/cn\/v\d\/resolve/g));
+                if(cnURLs.length > 1){
+                  response = response.replace(/cn\S+\.test\.dataone\.org\/cn\/v\d\/resolve|cn\.dataone\.org\/cn\/v\d\/resolve/g, cnResolveUrl.substring(cnResolveUrl.indexOf("https://")+8));
+                }
+
 
                 this.rdf.parse(response, this.dataPackageGraph, this.url(), 'application/rdf+xml');
 
@@ -425,16 +523,20 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     //Create a DataONEObject model to represent this collection member and add to the collection
                     if(!_.contains(this.pluck("id"), memberPID)){
 
-                       memberModel = this.add(new DataONEObject({
+                       memberModel = new DataONEObject({
                         id: memberPID,
                         resourceMap: [this.packageModel.get("id")],
                         collections: [this]
-                      }), { silent: true });
+                      });
+
+                      models.push(memberModel);
 
                     }
                     //If the model already exists, add this resource map ID to it's list of resource maps
                     else{
                       memberModel = this.get(memberPID);
+                      models.push(memberModel);
+
                       var rMaps = memberModel.get("resourceMap");
                       if(rMaps && Array.isArray(rMaps) && !_.contains(rMaps, this.packageModel.get("id"))) rMaps.push(this.packageModel.get("id"));
                       else if(rMaps && !Array.isArray(rMaps)) rMaps = [rMaps, this.packageModel.get("id")];
@@ -473,7 +575,8 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     this.originalIsDocBy[scidataID] = _.uniq([this.originalIsDocBy[scidataID], scimetaID]);
 
                   //Find the model in this collection for this data object
-                  var dataObj = this.get(scidataID);
+                  //var dataObj = this.get(scidataID);
+                  var dataObj = _.find(models, function(m){ return m.get("id") == scidataID });
 
                   if(dataObj){
                     //Get the isDocumentedBy field
@@ -494,54 +597,62 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 memberPIDs = _.difference(memberPIDs, sciMetaPids);
                 _.each(_.uniq(sciMetaPids), function(id){ memberPIDs.unshift(id); });
 
-                //Retrieve the model for each member
-                _.each(memberPIDs, function(pid){
+                //Don't fetch each member model if the fetchModels property on this Collection is set to false
+                if( this.fetchModels !== false ){
 
-                  memberModel = this.get(pid);
+                  //Add the models to the collection now, silently
+                  //this.add(models, {silent: true});
 
-                  var collection = this;
+                  //Retrieve the model for each member
+                  _.each(models, function(memberModel){
 
-                  memberModel.fetch();
-                  memberModel.once("sync",
-                    function(oldModel){
+                    var collection = this;
 
-                      //Get the right model type based on the model values
-                      var newModel = collection.getMember(oldModel);
+                    memberModel.fetch();
+                    memberModel.once("sync",
+                      function(oldModel){
 
-                      //If the model type has changed, then mark the model as unsynced, since there may be custom fetch() options for the new model
-                      if(oldModel.type != newModel.type){
+                        //Get the right model type based on the model values
+                        var newModel = collection.getMember(oldModel);
 
-                        // DataPackages shouldn't be fetched until we support nested packages better in the UI
-                        if(newModel.type == "DataPackage"){
-                          //Trigger a replace event so other parts of the app know when a model has been replaced with a different type
-                          oldModel.trigger("replace", newModel);
+                        //If the model type has changed, then mark the model as unsynced, since there may be custom fetch() options for the new model
+                        if(oldModel.type != newModel.type){
+
+                          // DataPackages shouldn't be fetched until we support nested packages better in the UI
+                          if(newModel.type == "DataPackage"){
+                            //Trigger a replace event so other parts of the app know when a model has been replaced with a different type
+                            oldModel.trigger("replace", newModel);
+                          }
+                          else{
+                            newModel.set("synced", false);
+
+                            newModel.fetch();
+                            newModel.once("sync", function(fetchedModel){
+                                fetchedModel.set("synced", true);
+
+                                //Remove the model from the collection and add it back
+                                collection.remove(oldModel);
+                                collection.add(fetchedModel);
+
+                                //Trigger a replace event so other parts of the app know when a model has been replaced with a different type
+                                oldModel.trigger("replace", newModel);
+
+                                if(newModel.type == "EML")
+                                  collection.trigger("add:EML");
+                              });
+                          }
                         }
                         else{
-                          newModel.set("synced", false);
+                          newModel.set("synced", true);
+                          collection.add(newModel, { merge: true });
 
-                          newModel.fetch();
-                          newModel.once("sync", function(fetchedModel){
-                              fetchedModel.set("synced", true);
-                              collection.add(fetchedModel, { merge: true });
+                          if(newModel.type == "EML")
+                            collection.trigger("add:EML");
+                          }
+                      });
 
-                              //Trigger a replace event so other parts of the app know when a model has been replaced with a different type
-                              oldModel.trigger("replace", newModel);
-
-                              if(newModel.type == "EML")
-                                collection.trigger("add:EML");
-                            });
-                        }
-                      }
-                      else{
-                        newModel.set("synced", true);
-                        collection.add(newModel, { replace: true });
-
-                        if(newModel.type == "EML")
-                      collection.trigger("add:EML");
-                      }
-                    });
-
-                  }, this);
+                    }, this);
+                }
 
               } catch (error) {
                    console.log(error);
@@ -1067,8 +1178,14 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
             this.stopListening(model, "cancelSave", this.save);
             this.listenToOnce(model,  "cancelSave", this.save);
 
-            //Save the model and watch for fails
-            model.save();
+            //If this is a Data model and it has no content changes, we only want to save the system metadata
+            if( model.get("type") == "Data" && !model.get("hasContentChanges") ){
+              model.updateSysMeta();
+            }
+            else{
+              //Save the model and watch for fails
+              model.save();
+            }
 
             //Add it to the list of models in progress
             modelsInProgress.push(model);
@@ -1121,7 +1238,6 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
           }
 
           var mapBlob = new Blob([mapXML], {type : 'application/xml'});
-          formData.append("object", mapBlob);
 
           //Get the size of the new resource map
           this.packageModel.set("size", mapBlob.size);
@@ -1132,14 +1248,19 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
           this.packageModel.set("checksumAlgorithm", "MD5");
 
           //Set the file name based on the id
-          this.packageModel.set("fileName", "resourceMap_" + this.packageModel.get("id") + ".rdf.xml");
+          this.packageModel.set("fileName", this.packageModel.get("id").replace(/[^a-zA-Z0-9]/g, "_") +
+            ".rdf.xml");
 
           //Create the system metadata
           var sysMetaXML = this.packageModel.serializeSysMeta();
 
           //Send the system metadata
           var xmlBlob = new Blob([sysMetaXML], {type : 'application/xml'});
+
+          //Add the object XML and System Metadata XML to the form data
+          //Append the system metadata first, so we can take advantage of Metacat's streaming multipart handler
           formData.append("sysmeta", xmlBlob, "sysmeta");
+          formData.append("object", mapBlob);
 
           var collection = this;
           var requestSettings = {
@@ -1212,8 +1333,8 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
         },
 
         /*
-         * Save an offline draft of the package and its members. A drafts of each 
-         * object is saved as key/value pairs in the offline store. The key is the 
+         * Save an offline draft of the package and its members. A drafts of each
+         * object is saved as key/value pairs in the offline store. The key is the
          * object id, and the value is the model details. LocalForage prioritizes saves
          * to IndexedDB, then WebSQL, then localStorage, depending on the browser
          * capabilities and age.
@@ -1224,7 +1345,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 if ( model.get ) {
                     switch(model.get("type")) {
                         case "Metadata":
-                            this.drafts.setItem(model.get("id"), 
+                            this.drafts.setItem(model.get("id"),
                             {type: "Metadata",
                             timestamp: new Date().toISOString(),
                             systemMetadata: model.serializeSysMeta(),
@@ -1236,7 +1357,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                             });
                             break;
                         case "Data":
-                            this.drafts.setItem(model.get("id"), 
+                            this.drafts.setItem(model.get("id"),
                                 {type: "Data",
                                 timestamp: new Date().toISOString(),
                                 systemMetadata: model.serializeSysMeta(),
@@ -1251,9 +1372,9 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 }
 
             }, this);
-            
+
             // Then save the collection
-            this.drafts.setItem(this.id, 
+            this.drafts.setItem(this.id,
                 {type: "Resource",
                  timestamp: new Date().toISOString(),
                  systemMetadata: this.packageModel.serializeSysMeta(),
@@ -1264,7 +1385,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                  console.log("Failed to save data package draft: " + err);
              });
         },
-        
+
         /*
          * When a data package member updates, we evaluate it for its formatid,
          * and update it appropriately if it is not a data object only
@@ -1568,6 +1689,17 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
         },
 
         triggerComplete: function(model){
+
+          //If the last fetch did not fetch the models of the collection, then mark as complete now.
+          if(this.fetchModels === false){
+            // Delete the fetchModels property since it is set only once per fetch.
+            delete this.fetchModels;
+
+            this.trigger("complete", this);
+
+            return;
+          }
+
           //Check if the collection is done being retrieved
           var notSynced = this.reject(function(m){
             return (m.get("synced") || m.get("id") == model.get("id"));
@@ -1664,7 +1796,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
               CITO =    rdf.Namespace(this.namespaces.CITO),
               XSD =     rdf.Namespace(this.namespaces.XSD);
 
-          var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
+          var cnResolveUrl = this.getCnURI();
 
           /* Check if this package member had provenance relationships added
               or deleted by the provenance editor functionality of the ProvChartView
@@ -1695,10 +1827,14 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
             var lastRef = false;
             //var graph = this.dataPackageGraph;
 
+            //Create a node for the subject and object
+            var subjectNode = rdf.sym( this.getURIFromRDF(subject) ),
+                objectNode  = rdf.sym( this.getURIFromRDF(object) );
+
             switch (predicate) {
                 case "prov_wasDerivedFrom":
-                    derivedDataNode = rdf.sym(cnResolveUrl + encodeURIComponent(subject));
-                    dataNode = rdf.sym(cnResolveUrl + encodeURIComponent(object));
+                    derivedDataNode = subjectNode;
+                    dataNode = objectNode;
                     if(operation == "add") {
                         this.addToGraph(dataNode, RDF("type"), PROVONE("Data"));
                         this.addToGraph(derivedDataNode, RDF("type"), PROVONE("Data"));
@@ -1711,7 +1847,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     break;
                 case "prov_generatedByProgram":
                     programId = object;
-                    dataNode = rdf.sym(cnResolveUrl + encodeURIComponent(subject));
+                    dataNode = subjectNode;
                     var removed = false;
                     if(operation == "add") {
                         // 'subject' is the program id, which is a simplification of the PROVONE model for display.
@@ -1732,7 +1868,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     break;
                 case "prov_usedByProgram":
                     programId = object;
-                    dataNode = rdf.sym(cnResolveUrl + encodeURIComponent(subject));
+                    dataNode = subjectNode;
                     if(operation == "add") {
                         // 'subject' is the program id, which is a simplification of the PROVONE model for display.
                         // In the PROVONE model, execution 'uses' and input, and is associated with a program.
@@ -1751,8 +1887,8 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     }
                     break;
                 case "prov_hasDerivations":
-                    dataNode = rdf.sym(cnResolveUrl + encodeURIComponent(subject));
-                    derivedDataNode = rdf.sym(cnResolveUrl + encodeURIComponent(object));
+                    dataNode = subjectNode
+                    derivedDataNode = objectNode;
                     if(operation == "add") {
                         this.addToGraph(dataNode, RDF("type"), PROVONE("Data"));
                         this.addToGraph(derivedDataNode, RDF("type"), PROVONE("Data"));
@@ -1764,7 +1900,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                     }
                     break;
                 case "prov_instanceOfClass":
-                    var entityNode = rdf.sym(cnResolveUrl + encodeURIComponent(subject));
+                    var entityNode = subjectNode;
                     var classNode = PROVONE(object);
                     if(operation == "add") {
                         this.addToGraph(entityNode, RDF("type"), classNode);
@@ -1874,7 +2010,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
           var rdf = this.rdf;
           var graph = this.dataPackageGraph;
           var stmts = null;
-          var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
+          var cnResolveUrl = this.getCnURI();
           var RDF = rdf.Namespace(this.namespaces.RDF),
               DCTERMS = rdf.Namespace(this.namespaces.DCTERMS),
               PROV    = rdf.Namespace(this.namespaces.PROV),
@@ -1885,7 +2021,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
           if(executionId.length > 0) {
               return(executionId[0]);
           } else {
-            var programNode = rdf.sym(cnResolveUrl + encodeURIComponent(programId));
+            var programNode = rdf.sym(this.getURIFromRDF(programId));
             // Get the executionId from the RDF graph
             // There can be only one plan for an association
             stmts = graph.statementsMatching(undefined, PROV("hadPlan"), programNode);
@@ -1908,18 +2044,18 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
             var graph = this.dataPackageGraph;
             var stmts = null;
             var testNode = null;
-            var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
+            var cnResolveUrl = this.getCnURI();
 
             // First see if the execution exists in the RDF graph as a 'bare' idenfier, i.e.
             // a 'urn:uuid'.
             stmts = graph.statementsMatching(rdf.sym(executionId), undefined, undefined);
             if(typeof stmts == "undefined" || !stmts.length) {
                 // The execution node as urn was not found, look for fully qualified version.
-                testNode = rdf.sym(cnResolveUrl + encodeURIComponent(executionId));
+                testNode = rdf.sym(this.getURIFromRDF(executionId));
                 stmts = graph.statementsMatching(rdf.sym(executionId), undefined, undefined);
                 if(typeof stmts == "undefined") {
                     // Couldn't find the execution, return the standard RDF node value
-                    executionNode = rdf.sym(cnResolveUrl + encodeURIComponent(executionId));
+                    executionNode = rdf.sym(this.getURIFromRDF(executionId));
                     return executionNode;
                 } else {
                     return testNode;
@@ -1945,7 +2081,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 var programNode = null;
                 var associationId = null;
                 var associationNode = null;
-                var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
+                var cnResolveUrl = this.getCnURI();
 
                 if(!executionId.length) {
                     // This is a new execution, so create new execution and association ids
@@ -1978,7 +2114,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 }
                 //associationNode = graph.bnode(associationId);
                 //associationNode = graph.bnode();
-                programNode = rdf.sym(cnResolveUrl + encodeURIComponent(programId));
+                programNode = rdf.sym(this.getURIFromRDF(programId));
                 try {
                     this.addToGraph(executionNode, PROV("qualifiedAssociation"), associationNode);
                     this.addToGraph(executionNode, RDF("type"), PROVONE("Execution"));
@@ -1998,7 +2134,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 var graph = this.dataPackageGraph;
                 var rdf = this.rdf;
                 var stmts = null;
-                var cnResolveUrl = MetacatUI.appModel.get('d1CNBaseUrl') + MetacatUI.appModel.get('d1CNService') +  '/resolve/';
+                var cnResolveUrl = this.getCnURI();
                 var RDF = rdf.Namespace(this.namespaces.RDF),
                 DCTERMS = rdf.Namespace(this.namespaces.DCTERMS),
                 PROV    = rdf.Namespace(this.namespaces.PROV),
@@ -2011,7 +2147,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
 
                 //var executionNode = rdf.sym(cnResolveUrl + encodeURIComponent(executionId));
                 var executionNode = this.getExecutionNode(executionId);
-                var programNode = rdf.sym(cnResolveUrl + encodeURIComponent(programId));
+                var programNode = rdf.sym( this.getURIFromRDF(programId) );
 
                 // In order to remove this program from the graph, we have to first determine that
                 // nothing else is using the execution that is associated with the program (the plan).
@@ -2064,91 +2200,59 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
             serialize: function() {
               //Create an RDF serializer
               var serializer = this.rdf.Serializer(),
-                    cnResolveUrl,
-                    idNode,
-                    idStatements,
-                    idStatement,
-                    oldPidVariations,
-                    aggregationNode,
-                    aggByStatements,
-                    modifiedDate,
-                    idsFromModel,
-                    subjectClone,
-                    predicateClone,
-                    objectClone;
+                  oldPidVariations,
+                  modifiedDate,
+                  subjectClone,
+                  predicateClone,
+                  objectClone;
 
-                    serializer.store = this.dataPackageGraph;
-
+              serializer.store = this.dataPackageGraph;
 
               //Define the namespaces
-                var ORE  = this.rdf.Namespace(this.namespaces.ORE),
+              var ORE  = this.rdf.Namespace(this.namespaces.ORE),
                   CITO = this.rdf.Namespace(this.namespaces.CITO),
-                    DC = this.rdf.Namespace(this.namespaces.DC),
-                    DCTERMS = this.rdf.Namespace(this.namespaces.DCTERMS),
-                    FOAF = this.rdf.Namespace(this.namespaces.FOAF),
-                    RDF = this.rdf.Namespace(this.namespaces.RDF),
-                    XSD = this.rdf.Namespace(this.namespaces.XSD);
+                  DC = this.rdf.Namespace(this.namespaces.DC),
+                  DCTERMS = this.rdf.Namespace(this.namespaces.DCTERMS),
+                  FOAF = this.rdf.Namespace(this.namespaces.FOAF),
+                  RDF = this.rdf.Namespace(this.namespaces.RDF),
+                  XSD = this.rdf.Namespace(this.namespaces.XSD);
 
               //Get the pid of this package - depends on whether we are updating or creating a resource map
-                var pid = this.packageModel.get("id"),
-                    oldPid = this.packageModel.get("oldPid");
+              var pid = this.packageModel.get("id"),
+                  oldPid = this.packageModel.get("oldPid"),
+                  cnResolveUrl = this.getCnURI();
 
-                //Update the pids in the RDF graph only if we are updating the resource map with a new pid
-                if( !this.packageModel.isNew() ) {
+              //Get a list of the models that are not in progress or failed uploading
+              var modelsToAggregate = this.reject(function(packageMember){
+                    return (packageMember.get("uploadStatus") == "p" || packageMember.get("uploadStatus") == "e")
+                  }),
+                  //Get all the ids of all those models
+                  idsFromModel = _.pluck(modelsToAggregate, "id");
 
-                  //Find the identifier statement in the resource map
-                  idNode =  this.rdf.lit(oldPid);
-                  idStatements = this.dataPackageGraph.statementsMatching(undefined, undefined, idNode);
-                  idStatement = idStatements[0];
+              this.idsToAggregate = idsFromModel;
 
-                  // Remove all describes/isDescribedBy statements (they'll be rebuilt)
-                  this.dataPackageGraph.removeMany(undefined, ORE("describes"), undefined, undefined, undefined);
-                  this.dataPackageGraph.removeMany(undefined, ORE("isDescribedBy"), undefined, undefined, undefined);
+              //Update the pids in the RDF graph only if we are updating the resource map with a new pid
+              if( !this.packageModel.isNew() ){
 
-                  //Get the CN Resolve Service base URL from the resource map
-                  // (mostly important in dev environments where it will not always be cn.dataone.org)
-                  if ( typeof this.dataPackageGraph.cnResolveUrl !== "undefined" ) {
-                    cnResolveUrl = this.dataPackageGraph.cnResolveUrl;
+                // Remove all describes/isDescribedBy statements (they'll be rebuilt)
+                this.dataPackageGraph.removeMany(undefined, ORE("describes"), undefined, undefined, undefined);
+                this.dataPackageGraph.removeMany(undefined, ORE("isDescribedBy"), undefined, undefined, undefined);
 
-                  } else if ( typeof idStatement !== "undefined" ) {
-                    cnResolveUrl =
-                            idStatement.subject.value.substring(0, idStatement.subject.value.indexOf(oldPid)) ||
-                            idStatement.subject.value.substring(0, idStatement.subject.value.indexOf(encodeURIComponent(oldPid)));
+                //Create variations of the resource map ID using the resolve URL so we can always find it in the RDF graph
+                oldPidVariations = [oldPid, encodeURIComponent(oldPid), cnResolveUrl + oldPid, cnResolveUrl+ encodeURIComponent(oldPid), this.getURIFromRDF(oldPid)];
 
-                  }
+                //Using the isAggregatedBy statements, find all the DataONE object ids in the RDF graph
+                var idsFromXML = [];
 
-                  this.dataPackageGraph.cnResolveUrl = cnResolveUrl;
+                var identifierStatements = this.dataPackageGraph.statementsMatching(undefined, DCTERMS("identifier"), undefined);
+                _.each(identifierStatements, function(statement){
 
-                  //Create variations of the resource map ID using the resolve URL so we can always find it in the RDF graph
-                  oldPidVariations = [oldPid, encodeURIComponent(oldPid), cnResolveUrl + oldPid, cnResolveUrl+ encodeURIComponent(oldPid)];
+                  idsFromXML.push(statement.object.value,
+                                  encodeURIComponent(statement.object.value),
+                                  cnResolveUrl + encodeURIComponent(statement.object.value),
+                                  cnResolveUrl + statement.object.value);
 
-                  //Get all the isAggregatedBy statements
-                  aggregationNode =  this.rdf.sym(cnResolveUrl + encodeURIComponent(oldPid) + "#aggregation");
-                  aggByStatements =  $.extend(true, [],
-                        this.dataPackageGraph.statementsMatching(undefined, ORE("isAggregatedBy")));
-
-                  //Using the isAggregatedBy statements, find all the DataONE object ids in the RDF graph
-                  var idsFromXML = [];
-                  _.each(aggByStatements, function(statement){
-
-                    //Check if the resource map ID is the old existing id, so we don't collect ids that are not about this resource map
-                    if(_.find(oldPidVariations, function(oldPidV){ return (oldPidV + "#aggregation" == statement.object.value) })){
-                      var statementID = statement.subject.value;
-                      idsFromXML.push(statementID);
-
-                      //Add variations of the ID so we make sure we account for all the ways they exist in the RDF XML
-                      if(statementID.indexOf(cnResolveUrl) > -1) {
-                        idsFromXML.push(statementID.substring(statementID.lastIndexOf("/") + 1));
-                                // Allow for ids that are simple URIs, e.g. "urn:uuid:1234..."
-                        idsFromXML.push(decodeURIComponent(statementID.substring(statementID.lastIndexOf("/") + 1)));
-                      } else
-                        idsFromXML.push(cnResolveUrl + encodeURIComponent(statementID));
-                    }
-
-                  }, this);
-
-                  //Get all the models ids from this collection
-                  idsFromModel = this.pluck("id");
+                }, this);
 
                 //Get all the child package ids
                 var childPackages = this.packageModel.get("childPackages");
@@ -2157,170 +2261,202 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 }
 
                 //Find the difference between the model IDs and the XML IDs to get a list of added members
-                  var addedIds  = _.without(_.difference(idsFromModel, idsFromXML), oldPidVariations);
-                  //Create variations of all these ids too
-                  var allMemberIds = idsFromModel;
-                    // Don't remove documents/documentedBy statements if this is a resource map update only
-                    // (because of provenance relationship edits), i.e. no new package members are being added.
-                    // Remove all documents and isDocumentedBy statements (they're rebuilt from the collection)
-            /*        if(!this.provEdits.length) {
-                        this.dataPackageGraph.removeMany(undefined, CITO("documents"), undefined, undefined, undefined);
-                        this.dataPackageGraph.removeMany(undefined, CITO("isDocumentedBy"), undefined, undefined, undefined);
-                    }
-*/
-                  _.each(idsFromModel, function(id){
-                    allMemberIds.push(cnResolveUrl + encodeURIComponent(id));
-                   });
+                var addedIds  = _.without(_.difference(idsFromModel, idsFromXML), oldPidVariations);
 
-                    // Remove any other isAggregatedBy statements that are not listed as members of this model
-                    _.each(aggByStatements, function(statement) {
-                        if( !_.contains(allMemberIds, statement.subject.value) ) {
-                            this.removeFromAggregation(statement.subject.value);
-                        }
-                    }, this);
+                //Start an array to track all the member id variations
+                var allMemberIds = idsFromModel;
 
-                  // Change all the statements in the RDF where the aggregation is the subject, to reflect the new resource map ID
-                    var aggregationSubjStatements = this.dataPackageGraph.statementsMatching(aggregationNode);
-                    _.each(aggregationSubjStatements, function(statement){
-                        subjectClone = this.cloneNode(statement.subject);
-                        subjectClone.value = cnResolveUrl + encodeURIComponent(pid) + "#aggregation";
-                        predicateClone = this.cloneNode(statement.predicate);
-                        objectClone = this.cloneNode(statement.object);
-                        this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
-                    }, this);
+                //Add the ids with the CN Resolve URLs
+                _.each(idsFromModel, function(id){
+                  allMemberIds.push(cnResolveUrl + encodeURIComponent(id), cnResolveUrl + id, encodeURIComponent(id));
+                });
 
-                    if(aggregationSubjStatements.length) {
-                        this.dataPackageGraph.removeMany(aggregationNode);
-                    }
+                //Find the identifier statement in the resource map
+                var idNode = this.rdf.lit(oldPid);
+                var idStatements = this.dataPackageGraph.statementsMatching(undefined, undefined, idNode);
 
-                  // Change all the statements in the RDF where the aggregation is the object, to reflect the new resource map ID
-                  var aggregationObjStatements = this.dataPackageGraph.statementsMatching(undefined, undefined, aggregationNode);
-                  _.each(aggregationObjStatements, function(statement) {
-                        subjectClone = this.cloneNode(statement.subject);
-                        predicateClone = this.cloneNode(statement.predicate);
-                        objectClone = this.cloneNode(statement.object);
-                        objectClone.value = cnResolveUrl + encodeURIComponent(pid) + "#aggregation";
-                        this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
-                  }, this);
+                //Change all the resource map identifier literal node in the RDF graph
+                if ( idStatements.length ) {
 
-                    if(aggregationObjStatements.length) {
-                        this.dataPackageGraph.removeMany(undefined, undefined, aggregationNode);
-                    }
+                  var idStatement = idStatements[0];
 
-                    // Get a fresh copy of the 'isAggregatedBy' statements (as some may have been
-                    // removed above), and check for any that contain an object that is not the
-                    // aggregation.
-                    aggByStatements =  $.extend(true, [],
-                        this.dataPackageGraph.statementsMatching(undefined, ORE("isAggregatedBy")));
+                  //Remove the identifier statement
+                  try {
+                    this.dataPackageGraph.remove(idStatement);
+                  } catch (error) {
+                    console.log(error);
+                  }
 
-                    // Remove any other isAggregatedBy statements for the old pid.
-                    _.each(aggByStatements, function(statement) {
-                        if ( _.find(oldPidVariations, function(oldPidV){ return (oldPidV + "#aggregation" == statement.object.value) }) ) {
-                            try {
-                                this.dataPackageGraph.remove(statement);
-                            } catch (error) {
-                                console.log(error);
-                            }
-                        }
-                    }, this)
+                  //Replace the id in the subject URI with the new id
+                  var newRMapURI = "";
+                  if( idStatement.subject.value.indexOf(oldPid) > -1 ){
+                    newRMapURI = idStatement.subject.value.replace(oldPid, pid);
+                  }
+                  else if( idStatement.subject.value.indexOf( encodeURIComponent(oldPid) ) > -1 ){
+                    newRMapURI = idStatement.subject.value.replace(encodeURIComponent(oldPid), encodeURIComponent(pid));
+                  }
 
-              //Change all the resource map identifier literal node in the RDF graph
-            if ( typeof idStatement != "undefined" ) {
-                        try {
-                            this.dataPackageGraph.remove(idStatement);
-                        } catch (error) {
-                            console.log(error);
-                        }
-                        idStatement.object.value = pid;
-                        this.dataPackageGraph.add(idStatement);
+                  //Create resource map nodes for the subject and object
+                  var rMapNode = this.rdf.sym(newRMapURI),
+                      rMapIdNode = this.rdf.lit(pid);
+                  //Add the triple for the resource map id
+                  this.dataPackageGraph.add(rMapNode, DCTERMS("identifier"), rMapIdNode);
 
-                    }
-
-            // Change all the resource map subject nodes in the RDF graph
-            var rMapNode =  this.rdf.sym(cnResolveUrl + encodeURIComponent(oldPid));
-              var rMapStatements = $.extend(true, [], this.dataPackageGraph.statementsMatching(rMapNode));
-
-                    // By first removing all statements by resource map subject
-                    try {
-                        this.dataPackageGraph.removeMany(rMapNode, undefined, undefined, undefined);
-                    } catch (error) {
-                        console.log(error);
-                    }
-
-                    // then repopulate them with correct values
-                    _.each(rMapStatements, function(statement) {
-                        subjectClone = this.rdf.Node.fromValue(statement.subject);
-                        predicateClone = this.rdf.Node.fromValue(statement.predicate);
-                        objectClone = this.rdf.Node.fromValue(statement.object);
-
-                        // In the case of modified date, reset it to now()
-                        if ( predicateClone.value === DC("modified") ) {
-                            objectClone.value = new Date().toISOString();
-                        }
-                        subjectClone.value = cnResolveUrl + encodeURIComponent(pid);
-                        this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
-                    }, this);
-
-                    // Add the describes/isDescribedBy statements back in
-                    this.dataPackageGraph.add(
-                        this.rdf.sym(cnResolveUrl + encodeURIComponent(pid)),
-                        ORE("describes"),
-                        this.rdf.sym(cnResolveUrl + encodeURIComponent(pid) + "#aggregation")
-                    );
-                    this.dataPackageGraph.add(
-                        this.rdf.sym(cnResolveUrl + encodeURIComponent(pid) + "#aggregation"),
-                        ORE("isDescribedBy"),
-                        this.rdf.sym(cnResolveUrl + encodeURIComponent(pid))
-                    );
-
-                  //Add nodes for new package members
-                  _.each(addedIds, function(id) {
-                    this.addToAggregation(id);
-                  }, this);
-
-
-                } else {
-
-                  // Create the OAI-ORE graph from scratch
-                    this.dataPackageGraph = this.rdf.graph();
-                    cnResolveUrl = MetacatUI.appModel.get("resolveServiceUrl") || "https://cn.dataone.org/cn/v2/resolve/";
-                    this.dataPackageGraph.cnResolveUrl = cnResolveUrl;
-                    rMapNode = this.rdf.sym(cnResolveUrl + encodeURIComponent(this.packageModel.id));
-                    aggregationNode = this.rdf.sym(cnResolveUrl + encodeURIComponent(this.packageModel.id) + "#aggregation");
-                    modifiedDate = this.rdf.lit(new Date().toISOString(), "", XSD("dateTime"));
-
-                    // Describe the resource map
-                    // With a Creator
-                    var creatorNode = this.rdf.blankNode();
-                    var creatorName = this.rdf.lit(MetacatUI.appUserModel.get("firstName") +
-                        " " +
-                        MetacatUI.appUserModel.get("lastName"),
-                        "",
-                        XSD("string"));
-                    this.dataPackageGraph.add(creatorNode, FOAF("name"), creatorName);
-                    this.dataPackageGraph.add(creatorNode, RDF("type"), DCTERMS("Agent"));
-                    this.dataPackageGraph.add(rMapNode, DC("creator"), creatorNode);
-
-                    // Set the modified date
-                    this.dataPackageGraph.add(rMapNode, DCTERMS("modified"), modifiedDate);
-
-                    this.dataPackageGraph.add(rMapNode, RDF("type"), ORE("ResourceMap"));
-                    this.dataPackageGraph.add(rMapNode, ORE("describes"), aggregationNode);
-                    var idLiteral = this.rdf.lit(this.packageModel.id, "", XSD("string"));
-                    this.dataPackageGraph.add(rMapNode, DCTERMS("identifier"), idLiteral);
-
-                    // Describe the aggregation
-                    this.dataPackageGraph.add(aggregationNode, ORE("isDescribedBy"), rMapNode);
-
-                    // Aggregate each package member
-                    idsFromModel = this.pluck("id");
-                    _.each(idsFromModel, function(id) {
-                        this.addToAggregation(id);
-
-                    }, this);
                 }
 
-                var xmlString = serializer.statementsToXML(this.dataPackageGraph.statements);
+                //Get all the isAggregatedBy statements
+                var aggByStatements =  $.extend(true, [],
+                      this.dataPackageGraph.statementsMatching(undefined, ORE("isAggregatedBy")));
+
+                // Remove any other isAggregatedBy statements that are not listed as members of this model
+                _.each(aggByStatements, function(statement) {
+                    if( !_.contains(allMemberIds, statement.subject.value) ) {
+                      this.removeFromAggregation(statement.subject.value);
+                    }
+                }, this);
+
+                // Change all the statements in the RDF where the aggregation is the subject, to reflect the new resource map ID
+                var aggregationNode;
+                _.each(oldPidVariations, function(oldPid){
+                  //Create a node for the old aggregation using this pid variation
+                  aggregationNode = this.rdf.sym( oldPid + "#aggregation" );
+                  var aggregationLitNode = this.rdf.lit( oldPid + "#aggregation", "", XSD("anyURI") );
+
+                  //Get all the triples where the old aggregation is the subject
+                  var aggregationSubjStatements = _.union(this.dataPackageGraph.statementsMatching(aggregationNode),
+                                                          this.dataPackageGraph.statementsMatching(aggregationLitNode));
+
+                  if(aggregationSubjStatements.length) {
+                    _.each(aggregationSubjStatements, function(statement){
+
+                      //Clone the subject
+                      subjectClone = this.cloneNode(statement.subject);
+                      //Clone the predicate
+                      predicateClone = this.cloneNode(statement.predicate);
+                      //Clone the object
+                      objectClone = this.cloneNode(statement.object);
+
+                      //Set the subject value to the new aggregation id
+                      subjectClone.value = this.getURIFromRDF(pid) + "#aggregation";
+
+                      //Add a new statement with the new aggregation subject but the same predicate and object
+                      this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
+                    }, this);
+
+                    //Remove the old aggregation statements from the graph
+                    this.dataPackageGraph.removeMany(aggregationNode);
+                  }
+
+                  // Change all the statements in the RDF where the aggregation is the object, to reflect the new resource map ID
+                  var aggregationObjStatements = _.union(this.dataPackageGraph.statementsMatching(undefined, undefined, aggregationNode),
+                                                         this.dataPackageGraph.statementsMatching(undefined, undefined, aggregationLitNode));
+
+                  if(aggregationObjStatements.length) {
+                    _.each(aggregationObjStatements, function(statement) {
+
+                      //Clone the subject, object, and predicate
+                      subjectClone = this.cloneNode(statement.subject);
+                      predicateClone = this.cloneNode(statement.predicate);
+                      objectClone = this.cloneNode(statement.object);
+
+                      //Set the object to the new aggregation pid
+                      objectClone.value = this.getURIFromRDF(pid) + "#aggregation";
+
+                      //Add the statement with the old subject and predicate but new aggregation object
+                      this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
+                    }, this);
+
+                    //Remove all the old aggregation statements from the graph
+                    this.dataPackageGraph.removeMany(undefined, undefined, aggregationNode);
+                  }
+
+                  // Change all the resource map subject nodes in the RDF graph
+                  var rMapNode = this.rdf.sym( this.getURIFromRDF(oldPid) );
+                  var rMapStatements = $.extend(true, [], this.dataPackageGraph.statementsMatching(rMapNode));
+
+                  // then repopulate them with correct values
+                  _.each(rMapStatements, function(statement) {
+                      subjectClone   = this.cloneNode(statement.subject);
+                      predicateClone = this.cloneNode(statement.predicate);
+                      objectClone    = this.cloneNode(statement.object);
+
+                      // In the case of modified date, reset it to now()
+                      if ( predicateClone.value === DC("modified") ) {
+                          objectClone.value = new Date().toISOString();
+                      }
+
+                      //Update the subject to the new pid
+                      subjectClone.value = this.getURIFromRDF(pid);
+
+                      //Remove the old resource map statement
+                      this.dataPackageGraph.remove(statement);
+
+                      //Add the statement with the new subject pid, but the same predicate and object
+                      this.dataPackageGraph.add(subjectClone, predicateClone, objectClone);
+
+                  }, this);
+
+                }, this);
+
+                // Add the describes/isDescribedBy statements back in
+                this.dataPackageGraph.add(
+                    this.rdf.sym(this.getURIFromRDF(pid)),
+                    ORE("describes"),
+                    this.rdf.sym(this.getURIFromRDF(pid) + "#aggregation")
+                );
+                this.dataPackageGraph.add(
+                    this.rdf.sym(this.getURIFromRDF(pid) + "#aggregation"),
+                    ORE("isDescribedBy"),
+                    this.rdf.sym(this.getURIFromRDF(pid))
+                );
+
+                //Add nodes for new package members
+                _.each(addedIds, function(id) {
+                  this.addToAggregation(id);
+                }, this);
+
+              }
+              else {
+
+                // Create the OAI-ORE graph from scratch
+                this.dataPackageGraph = this.rdf.graph();
+                cnResolveUrl = this.getCnURI();
+
+                //Create a resource map node
+                var rMapNode = this.rdf.sym(this.getURIFromRDF(this.packageModel.id));
+                //Create an aggregation node
+                var aggregationNode = this.rdf.sym(this.getURIFromRDF(this.packageModel.id) + "#aggregation");
+
+                // Describe the resource map with a Creator
+                var creatorNode = this.rdf.blankNode();
+                var creatorName = this.rdf.lit((MetacatUI.appUserModel.get("firstName") || "") +
+                    " " + (MetacatUI.appUserModel.get("lastName") || ""),
+                    "",
+                    XSD("string"));
+                this.dataPackageGraph.add(creatorNode, FOAF("name"), creatorName);
+                this.dataPackageGraph.add(creatorNode, RDF("type"), DCTERMS("Agent"));
+                this.dataPackageGraph.add(rMapNode, DC("creator"), creatorNode);
+
+                // Set the modified date
+                modifiedDate = this.rdf.lit(new Date().toISOString(), "", XSD("dateTime"));
+                this.dataPackageGraph.add(rMapNode, DCTERMS("modified"), modifiedDate);
+
+                this.dataPackageGraph.add(rMapNode, RDF("type"), ORE("ResourceMap"));
+                this.dataPackageGraph.add(rMapNode, ORE("describes"), aggregationNode);
+                var idLiteral = this.rdf.lit(this.packageModel.id, "", XSD("string"));
+                this.dataPackageGraph.add(rMapNode, DCTERMS("identifier"), idLiteral);
+
+                // Describe the aggregation
+                this.dataPackageGraph.add(aggregationNode, ORE("isDescribedBy"), rMapNode);
+
+                // Aggregate each package member
+                _.each(idsFromModel, function(id) {
+                    this.addToAggregation(id);
+                }, this);
+              }
+
+              var xmlString = serializer.statementsToXML(this.dataPackageGraph.statements);
+
 
               return xmlString;
             },
@@ -2341,7 +2477,8 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                         }
                         break;
                     case "BlankNode":
-                        return(this.rdf.bnode(nodeToClone.value));
+                        //Blank nodes don't need to be cloned
+                        return nodeToClone;//(this.rdf.blankNode(nodeToClone.value));
                         break;
                     case "Collection":
                         // TODO: construct a list of nodes for this term type.
@@ -2354,131 +2491,143 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
 
             // Adds a new object to the resource map RDF graph
             addToAggregation: function(id){
-              if(id.indexOf(this.dataPackageGraph.cnResolveUrl) < 0)
-                var fullID = this.dataPackageGraph.cnResolveUrl + encodeURIComponent(id);
-              else{
-                var fullID = id;
-                id = id.substring(this.dataPackageGraph.cnResolveUrl.lastIndexOf("/") + 1);
-              }
 
               // Initialize the namespaces
               var ORE     = this.rdf.Namespace(this.namespaces.ORE),
-                DCTERMS = this.rdf.Namespace(this.namespaces.DCTERMS),
-                XSD     = this.rdf.Namespace(this.namespaces.XSD),
-                CITO    = this.rdf.Namespace(this.namespaces.CITO);
+                  DCTERMS = this.rdf.Namespace(this.namespaces.DCTERMS),
+                  XSD     = this.rdf.Namespace(this.namespaces.XSD),
+                  CITO    = this.rdf.Namespace(this.namespaces.CITO);
 
               // Create a node for this object, the identifier, the resource map, and the aggregation
-              var objectNode = this.rdf.sym(fullID),
-                mapNode    = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(this.packageModel.get("id"))),
-                aggNode    = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(this.packageModel.get("id")) + "#aggregation"),
-                idNode     = this.rdf.literal(id, undefined, XSD("string")),
-                    idStatements = [],
-                    aggStatements = [],
-                    aggByStatements = [],
-                    documentsStatements = [],
-                    isDocumentedByStatements = [];
+              var objectNode = this.rdf.sym(this.getURIFromRDF(id)),
+                  rMapURI    = this.getURIFromRDF(this.packageModel.get("id")),
+                  mapNode    = this.rdf.sym(rMapURI),
+                  aggNode    = this.rdf.sym(rMapURI + "#aggregation"),
+                  idNode     = this.rdf.literal(id, undefined, XSD("string")),
+                  idStatements = [],
+                  aggStatements = [],
+                  aggByStatements = [],
+                  documentsStatements = [],
+                  isDocumentedByStatements = [];
 
               // Add the statement: this object isAggregatedBy the resource map aggregation
-                aggByStatements = this.dataPackageGraph.statementsMatching(objectNode, ORE("isAggregatedBy"), aggNode);
-                if ( aggByStatements.length < 1 ) {
-              this.dataPackageGraph.add(objectNode, ORE("isAggregatedBy"), aggNode);
-
-                }
-          // Add the statement: The resource map aggregation aggregates this object
-                aggStatements = this.dataPackageGraph.statementsMatching(aggNode, ORE("aggregates"), objectNode);
-                if ( aggStatements.length < 1 ) {
-              this.dataPackageGraph.add(aggNode, ORE("aggregates"), objectNode);
-
-                }
-          // Add the statement: This object has the identifier {id} if it isn't present
-                idStatements = this.dataPackageGraph.statementsMatching(objectNode, DCTERMS("identifier"), idNode);
-                if ( idStatements.length < 1 ) {
-              this.dataPackageGraph.add(objectNode, DCTERMS("identifier"), idNode);
-
-                }
-
-          // Find the metadata doc that describes this object
-          var model   = _.find(this.models, function(m){ return m.get("id") == id }),
-            isDocBy = model.get("isDocumentedBy"),
-            documents = model.get("documents");
-
-                // Deal with Solr indexing bug where metadata-only packages must "document" themselves
-                if ( isDocBy.length === 0 && documents.length === 0 ) {
-                    documents.push(model.get("id"));
-
-                }
-
-          // If this object is documented by any metadata...
-          if(isDocBy && isDocBy.length){
-            // Get the ids of all the metadata objects in this package
-            var  metadataInPackage = _.compact(_.map(this.models, function(m){ if(m.get("formatType") == "METADATA") return m.get("id"); }));
-
-            // Find the metadata IDs that are in this package that also documents this data object
-            var metadataIds = Array.isArray(isDocBy)? _.intersection(metadataInPackage, isDocBy) : _.intersection(metadataInPackage, [isDocBy]);
-
-            // If this data object is not documented by one of these metadata docs,
-            // then we should check if it's documented by an obsoleted pid. If so,
-            // we'll want to change that so it's documented by a current metadata.
-            if( metadataIds.length == 0 ){
-
-              for(var i=0; i < metadataInPackage.length; i++){
-
-                //If the previous version of this metadata documents this data,
-                if( _.contains(isDocBy, metadataInPackage[i].get("obsoletes")) ){
-                  //Save the metadata id for serialization
-                  metadataIds = [metadataInPackage[i].get("id")];
-
-                  //Exit the for loop
-                  break;
-                }
+              aggByStatements = this.dataPackageGraph.statementsMatching(objectNode, ORE("isAggregatedBy"), aggNode);
+              if ( aggByStatements.length < 1 ) {
+                this.dataPackageGraph.add(objectNode, ORE("isAggregatedBy"), aggNode);
               }
 
-            }
+              // Add the statement: The resource map aggregation aggregates this object
+              aggStatements = this.dataPackageGraph.statementsMatching(aggNode, ORE("aggregates"), objectNode);
+              if ( aggStatements.length < 1 ) {
+                this.dataPackageGraph.add(aggNode, ORE("aggregates"), objectNode);
+              }
 
-            // For each metadata that documents this object, add a CITO:isDocumentedBy and CITO:documents statement
-            _.each(metadataIds, function(metaId){
-              //Create the named nodes and statements
-              var dataNode         = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(id)),
-                metadataNode     = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(metaId)),
-                isDocByStatement = this.rdf.st(dataNode, CITO("isDocumentedBy"), metadataNode),
-                documentsStatement = this.rdf.st(metadataNode, CITO("documents"), dataNode);
+              // Add the statement: This object has the identifier {id} if it isn't present
+              idStatements = this.dataPackageGraph.statementsMatching(objectNode, DCTERMS("identifier"), idNode);
+              if ( idStatements.length < 1 ) {
+                this.dataPackageGraph.add(objectNode, DCTERMS("identifier"), idNode);
+              }
 
-                        // Add the statements
-                        documentsStatements = this.dataPackageGraph.statementsMatching(metadataNode, CITO("documents"), dataNode);
-                        if ( documentsStatements.length < 1 ) {
-                            this.dataPackageGraph.add(documentsStatement);
-                        }
-                        isDocumentedByStatements = this.dataPackageGraph.statementsMatching(dataNode, CITO("isDocumentedBy"), metadataNode);
-                        if ( isDocumentedByStatements.length < 1 ) {
-                            this.dataPackageGraph.add(isDocByStatement);
-                        }
-            }, this);
-          }
+              // Find the metadata doc that describes this object
+              var model   = this.findWhere({ "id" : id }),
+                  isDocBy = model.get("isDocumentedBy"),
+                  documents = model.get("documents");
 
-          // If this object documents a data object
-          if(documents && documents.length){
-            // Create a literal node for it
-            var metadataNode = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(id));
+              // Deal with Solr indexing bug where metadata-only packages must "document" themselves
+              if ( isDocBy.length === 0 && documents.length === 0 ) {
+                  documents.push(model.get("id"));
+              }
 
-            _.each(documents, function(dataID){
-              // Create a named node for the data object
-              var dataNode = this.rdf.sym(this.dataPackageGraph.cnResolveUrl + encodeURIComponent(dataID)),
-              // Create a statement: This metadata documents this data
-                documentsStatement = this.rdf.st(metadataNode, CITO("documents"), dataNode),
-              // Create a statement: This data is documented by this metadata
-                isDocByStatement = this.rdf.st(dataNode, CITO("isDocumentedBy"), metadataNode);
+              // If this object is documented by any metadata...
+              if(isDocBy && isDocBy.length){
+                // Get the ids of all the metadata objects in this package
+                var  metadataInPackage = _.compact(_.map(this.models, function(m){ if(m.get("formatType") == "METADATA") return m.get("id"); }));
 
-              // Add the statements
-                        documentsStatements = this.dataPackageGraph.statementsMatching(metadataNode, CITO("documents"), dataNode);
-                        if ( documentsStatements.length < 1 ) {
-                            this.dataPackageGraph.add(documentsStatement);
-                        }
-                        isDocumentedByStatements = this.dataPackageGraph.statementsMatching(dataNode, CITO("isDocumentedBy"), metadataNode);
-                        if ( isDocumentedByStatements.length < 1 ) {
-                            this.dataPackageGraph.add(isDocByStatement);
-                        }
-            }, this);
-          }
+                // Find the metadata IDs that are in this package that also documents this data object
+                var metadataIds = Array.isArray(isDocBy)? _.intersection(metadataInPackage, isDocBy) : _.intersection(metadataInPackage, [isDocBy]);
+
+                // If this data object is not documented by one of these metadata docs,
+                // then we should check if it's documented by an obsoleted pid. If so,
+                // we'll want to change that so it's documented by a current metadata.
+                if( metadataIds.length == 0 ){
+
+                  for(var i=0; i < metadataInPackage.length; i++){
+
+                    //If the previous version of this metadata documents this data,
+                    if( _.contains(isDocBy, metadataInPackage[i].get("obsoletes")) ){
+                      //Save the metadata id for serialization
+                      metadataIds = [metadataInPackage[i].get("id")];
+
+                      //Exit the for loop
+                      break;
+                    }
+                  }
+
+                }
+
+                // For each metadata that documents this object, add a CITO:isDocumentedBy and CITO:documents statement
+                _.each(metadataIds, function(metaId){
+                  //Create the named nodes and statements
+                  var dataNode       = this.rdf.sym( this.getURIFromRDF(id) ),
+                    metadataNode     = this.rdf.sym( this.getURIFromRDF(metaId) ),
+                    isDocByStatement = this.rdf.st(dataNode, CITO("isDocumentedBy"), metadataNode),
+                    documentsStatement = this.rdf.st(metadataNode, CITO("documents"), dataNode);
+
+                    // Add the statements
+                    documentsStatements = this.dataPackageGraph.statementsMatching(metadataNode, CITO("documents"), dataNode);
+                    if ( documentsStatements.length < 1 ) {
+                        this.dataPackageGraph.add(documentsStatement);
+                    }
+                    isDocumentedByStatements = this.dataPackageGraph.statementsMatching(dataNode, CITO("isDocumentedBy"), metadataNode);
+                    if ( isDocumentedByStatements.length < 1 ) {
+                        this.dataPackageGraph.add(isDocByStatement);
+                    }
+                }, this);
+              }
+
+              // If this object documents a data object
+              if(documents && documents.length){
+
+                // Create a literal node for it
+                var metadataNode = this.rdf.sym( this.getURIFromRDF(id) );
+
+                _.each(documents, function(dataID){
+
+                  //Make sure the id is one that will be aggregated
+                  if( _.contains(this.idsToAggregate, dataID) ){
+
+                    //Find the identifier statement for this data object
+                    var dataURI = this.getURIFromRDF(dataID);
+
+                    //Create a data node using the exact way the identifier URI is written
+                    var dataNode = this.rdf.sym(dataURI);
+
+                    //Get the statements for data isDocumentedBy metadata
+                    isDocumentedByStatements = this.dataPackageGraph.statementsMatching(dataNode, CITO("isDocumentedBy"), metadataNode);
+
+                    //If that statement is not in the RDF already...
+                    if ( isDocumentedByStatements.length < 1 ) {
+                      // Create a statement: This data is documented by this metadata
+                      var isDocByStatement = this.rdf.st(dataNode, CITO("isDocumentedBy"), metadataNode);
+                      //Add the "isDocumentedBy" statement
+                      this.dataPackageGraph.add(isDocByStatement);
+                    }
+
+                    //Get the statements for metadata documents data
+                    documentsStatements = this.dataPackageGraph.statementsMatching(metadataNode, CITO("documents"), dataNode);
+
+                    //If that statement is not in the RDF already...
+                    if ( documentsStatements.length < 1 ) {
+                      // Create a statement: This metadata documents data
+                      var documentsStatement = this.rdf.st(metadataNode, CITO("documents"), dataNode);
+                      //Add the "isDocumentedBy" statement
+                      this.dataPackageGraph.add(documentsStatement);
+                    }
+
+                  }
+                }, this);
+              }
+
             },
 
             /*
@@ -2486,7 +2635,7 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
              */
             removeFromAggregation: function(id){
                 if ( id.indexOf(this.dataPackageGraph.cnResolveUrl) == -1 ) {
-                    id = this.dataPackageGraph.cnResolveUrl + encodeURIComponent(id);
+                    id = this.getURIFromRDF(id);
                 }
 
               // Create a literal node for the removed object
@@ -2503,6 +2652,76 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
                 } catch (error) {
                     console.log(error);
                 }
+            },
+
+            /**
+            * Finds the given identifier in the RDF graph and returns the subject
+            * URI of that statement. This is useful when adding additional statements
+            * to the RDF graph for an object that already exists in that graph.
+            *
+            * @param {string} id - The identifier to search for
+            * @return {string} - The full URI for the given id as it exists in the RDF.
+            */
+            getURIFromRDF: function(id){
+
+              //Exit if no id was given
+              if( !id )
+                return "";
+
+              //Create a literal node with the identifier as the value
+              var XSD = this.rdf.Namespace(this.namespaces.XSD),
+                  DCTERMS = this.rdf.Namespace(this.namespaces.DCTERMS),
+                  idNode = this.rdf.literal(id, undefined, XSD("string")),
+                  //Find the identifier statements for the given id
+                  idStatements = this.dataPackageGraph.statementsMatching(undefined, DCTERMS("identifier"), idNode);
+
+              //If this object has an identifier statement,
+              if( idStatements.length > 0 ){
+                //Return the subject of the statement
+                return idStatements[0].subject.value;
+              }
+              else{
+                return this.getCnURI() + encodeURIComponent(id);
+              }
+            },
+
+            /**
+            * Parses out the CN Resolve URL from the existing statements in the RDF
+            * or if not found in the RDF, from the app configuration.
+            *
+            * @return {string} - The CN resolve URL
+            */
+            getCnURI: function(){
+
+              //If the CN resolve URL was already found, return it
+              if( this.dataPackageGraph.cnResolveUrl ){
+                return this.dataPackageGraph.cnResolveUrl;
+              }
+              else if( this.packageModel.get("oldPid") ){
+
+                //Find the identifier statement for the resource map in the  RDF graph
+                var idNode =  this.rdf.lit( this.packageModel.get("oldPid") ),
+                    idStatements = this.dataPackageGraph.statementsMatching(undefined, undefined, idNode),
+                    idStatement = idStatements.length? idStatements[0] : null;
+
+                if ( idStatement ) {
+                  //Parse the CN resolve URL from the statement subject URI
+                  this.dataPackageGraph.cnResolveUrl =
+                          idStatement.subject.value.substring(0, idStatement.subject.value.indexOf(this.packageModel.get("oldPid"))) ||
+                          idStatement.subject.value.substring(0, idStatement.subject.value.indexOf(encodeURIComponent(this.packageModel.get("oldPid"))));
+
+                }
+                else{
+                  this.dataPackageGraph.cnResolveUrl = MetacatUI.appModel.get("resolveServiceUrl");
+                }
+              }
+              else{
+                this.dataPackageGraph.cnResolveUrl = MetacatUI.appModel.get("resolveServiceUrl");
+              }
+
+              //Return the CN resolve URL
+              return this.dataPackageGraph.cnResolveUrl;
+
             },
 
             /*
@@ -2628,7 +2847,95 @@ define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md
 
             },
 
-            /*
+            /**
+            * Fetches this DataPackage from the Solr index by using a SolrResults collection
+            * and merging the models in.
+            */
+            fetchFromIndex: function(){
+
+              if( typeof this.solrResults == "undefined" || !this.solrResults ){
+                this.solrResults = new SolrResults();
+              }
+
+              //If no query is set yet, use the FilterModel associated with this DataPackage
+              if( !this.solrResults.currentquery.length ){
+                this.solrResults.currentquery = this.filterModel.getQuery();
+              }
+
+              this.listenToOnce(this.solrResults, "reset", function(solrResults){
+                //Merge the SolrResults into this collection
+                this.mergeModels(solrResults.models);
+
+                //Trigger the fetch as complete
+                this.trigger("complete");
+              });
+
+              //Query the index for this data package
+              this.solrResults.query();
+
+            },
+
+            /**
+            * Merge the attributes of other models into the corresponding models in this collection.
+            * This should be used when merging models of other types (e.g. SolrResult) that represent the same
+            * object that the DataONEObject models in the collection represent.
+            *
+            * @param {Backbone.Model[]} otherModels - the other models to merge with the models in this collection
+            * @param {string[]} [fieldsToMerge] - If specified, only these fields will be extracted from the otherModels
+            */
+            mergeModels: function(otherModels, fieldsToMerge){
+
+              //If no otherModels are given, exit the function since there is nothing to merge
+              if(typeof otherModels == "undefined" || !otherModels || !otherModels.length){
+                return false;
+              }
+
+              _.each(otherModels, function(otherModel){
+
+                //Get the model from this collection that matches ids with the other model
+                var modelInDataPackage = this.findWhere({ id: otherModel.get("id") });
+
+                //If a match is found,
+                if( modelInDataPackage ){
+
+                  var valuesFromOtherModel;
+
+                  //If specific fields to merge are given, get the values for those from the other model
+                  if( fieldsToMerge && fieldsToMerge.length ){
+                    valuesFromOtherModel = _.pick(otherModel.toJSON(), fieldsToMerge);
+                  }
+                  //If no specific fields are given, merge (almost) all others
+                  else{
+
+                    //Get the default values for this model type
+                    var otherModelDefaults = otherModel.defaults,
+                    //Get a JSON object of all the attributes on this model
+                        otherModelAttr     = otherModel.toJSON(),
+                    //Start an array of attributes to omit during the merge
+                        omitKeys = [];
+
+                    _.each(otherModelAttr, function(val, key){
+                      //If this model's attribute is the default, don't set it on our DataONEObject model
+                      //  because whatever value is in the DataONEObject model is better information than the default
+                      //  value of the other model.
+                      if( otherModelDefaults[key] === val )
+                        omitKeys.push(key);
+                    });
+
+                    //Remove the properties that are still the default value
+                    valuesFromOtherModel = _.omit(otherModelAttr, omitKeys);
+                  }
+
+                  //Set the values from the other model on the model in this collection
+                  modelInDataPackage.set(valuesFromOtherModel);
+
+                }
+
+              }, this);
+
+            },
+
+            /**
              * Update the relationships in this resource map when its been udpated
              */
             updateRelationships: function(){

@@ -1,0 +1,40 @@
+<article class="editor-view portal-editor">
+  <header id="editor-header">
+    <div class="logo-editor-container" data-category="logo">
+      <h5>Logo
+        <i class="required-icon hidden" data-category="logo"></i>
+      </h5>
+      <span class="notification" data-category="logo"></span>
+    </div>
+    <div class="title-container">
+      <h5>
+        Title
+        <i class="required-icon hidden" data-category="name"></i>
+        <span class="notification" data-category="name"></span>
+      </h5>
+      <textarea type="text" data-category="name" class="basic-text portal-title auto-resize" placeholder="Choose a title"><%=name%></textarea>
+    </div>
+    <!-- Share button will be inserted into the editor-controls by the PortalView -->
+    <div class="editor-controls"></div>
+  </header>
+  <section id="editor-body" class="port-editor-sections-container"></section>
+  <section id="editor-footer">
+    <div class="editor-save-controls">
+      <a class="view-portal-link hidden" href="" target="_blank">View last saved version <i class="icon icon-external-link icon-on-right"></i></a>
+      <a class="btn btn-primary save" id="save-editor"><%=submitButtonText%></a>
+    </div>
+  </section>
+
+</article>
+
+<style type="text/css">
+  :root {
+    --portal-primary-color: <%=primaryColor%>;
+    --portal-secondary-color: <%=secondaryColor%>;
+    --portal-accent-color: <%=accentColor%>;
+    --portal-primary-color-transparent: <%=primaryColorTransparent%>;
+    --portal-secondary-color-transparent: <%=secondaryColorTransparent%>;
+    --portal-accent-color-transparent: <%=accentColorTransparent%>;
+
+  }
+</style>

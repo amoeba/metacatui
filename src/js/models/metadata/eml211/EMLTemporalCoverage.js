@@ -1,8 +1,11 @@
 define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
     function($, _, NestedModel, DataONEObject) {
 
+  /**
+  * @class EMLTemporalCoverage
+	* @lends EMLTemporalCoverage.prototype
+  */
 	var EMLTemporalCoverage = NestedModel.extend({
-
 		defaults: {
 			objectXML: null,
 			objectDOM: null,
@@ -352,7 +355,6 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 		/**
 		 * This function checks whether the begin date is greater than the end date.
 		 *
-		 * @function isGreaterDate
 		 * @param {string} beginDate the begin date string
 		 * @param {string} endDate the end date string
 		 * @return {boolean}
@@ -404,7 +406,6 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
         /**
 		 * This function checks whether the begin time is greater than the end time.
 		 *
-		 * @function isGreaterTime
 		 * @param {string} beginDate the begin date string
 		 * @param {string} endDate the end date string
 		 * @param {string} beginTime the begin time string
@@ -459,6 +460,17 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 			}
 			return false;
 		},
+
+    /**
+    * Checks if this model has no values set on it
+    * @return {boolean}
+    */
+    isEmpty: function(){
+
+      return (!this.get('beginDate') && !this.get('beginTime') && !this.get('endDate')
+              && !this.get('endTime'));
+
+    },
 
     /*
     * Climbs up the model heirarchy until it finds the EML model

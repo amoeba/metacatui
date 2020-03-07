@@ -24,7 +24,7 @@ MetacatUI.root = "/metacatui"
 MetacatUI.root = MetacatUI.root.replace(/\/$/, "");
 
 //This version of Metacat UI - used for cache busting
-MetacatUI.metacatUIVersion = "2.2.1";
+MetacatUI.metacatUIVersion = "2.8.5";
 
 MetacatUI.loadTheme = function(theme) {
     var script = document.createElement("script");
@@ -375,36 +375,46 @@ MetacatUI.preventCompatibilityIssues = function(){
         return -1;
       };
     }
-}
 
-if (typeof Object.assign != 'function') {
-  // Must be writable: true, enumerable: false, configurable: true
-  Object.defineProperty(Object, "assign", {
-    value: function assign(target, varArgs) { // .length of function is 2
-      'use strict';
-      if (target == null) { // TypeError if undefined or null
-        throw new TypeError('Cannot convert undefined or null to object');
-      }
+    //Polyfill for NodeList.forEach, which isn't supported in IE at all, or Edge before v16.
+    // https://developer.mozilla.org/en-US/docs/Web/API/NodeList/forEach#Polyfill
+    if (window.NodeList && !NodeList.prototype.forEach) {
+      NodeList.prototype.forEach = Array.prototype.forEach;
+    }
 
-      var to = Object(target);
+    //Polyfill for Object.assign()
+    if (typeof Object.assign != 'function') {
+      // Must be writable: true, enumerable: false, configurable: true
+      Object.defineProperty(Object, "assign", {
+        value: function assign(target, varArgs) { // .length of function is 2
+          'use strict';
+          if (target == null) { // TypeError if undefined or null
+            throw new TypeError('Cannot convert undefined or null to object');
+          }
 
-      for (var index = 1; index < arguments.length; index++) {
-        var nextSource = arguments[index];
+          var to = Object(target);
 
-        if (nextSource != null) { // Skip over if undefined or null
-          for (var nextKey in nextSource) {
-            // Avoid bugs when hasOwnProperty is shadowed
-            if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-              to[nextKey] = nextSource[nextKey];
+          for (var index = 1; index < arguments.length; index++) {
+            var nextSource = arguments[index];
+
+            if (nextSource != null) { // Skip over if undefined or null
+              for (var nextKey in nextSource) {
+                // Avoid bugs when hasOwnProperty is shadowed
+                if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                  to[nextKey] = nextSource[nextKey];
+                }
+              }
             }
           }
-        }
-      }
-      return to;
-    },
-    writable: true,
-    configurable: true
-  });
+          return to;
+        },
+        writable: true,
+        configurable: true
+      });
+    }
+
+    //Polyfill for Array.includes, taken from https://github.com/kevlatus/polyfill-array-includes#readme
+    Array.prototype.includes||Object.defineProperty(Array.prototype,"includes",{value:function(r,e){if(null==this)throw new TypeError('"this" is null or not defined');var t=Object(this),n=t.length>>>0;if(0===n)return!1;var i,o,a=0|e,u=Math.max(a>=0?a:n-Math.abs(a),0);for(;u<n;){if((i=t[u])===(o=r)||"number"==typeof i&&"number"==typeof o&&isNaN(i)&&isNaN(o))return!0;u++}return!1}});
 }
 
 MetacatUI.preventCompatibilityIssues();

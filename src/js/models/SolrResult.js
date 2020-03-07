@@ -4,7 +4,8 @@ define(['jquery', 'underscore', 'backbone'],
 
 	// SolrResult Model
 	// ------------------
-	var SolrResult = Backbone.Model.extend({
+	var SolrResult = Backbone.Model.extend(
+    /** @lends SolrResult.prototype */{
 		// This model contains all of the attributes found in the SOLR 'docs' field inside of the SOLR response element
 		defaults: {
 			abstract: null,
@@ -35,7 +36,7 @@ define(['jquery', 'underscore', 'backbone'],
 			datasource: null,
 			rightsHolder: null,
 			size: 0,
-			type: null,
+			type: "",
 			url: null,
 			obsoletedBy: null,
 			geohash_9: null,
@@ -50,6 +51,8 @@ define(['jquery', 'underscore', 'backbone'],
 			serviceOutput: null,
 			notFound: false,
 			newestVersion: null,
+      //@type {string} - The system metadata XML as a string
+      systemMetadata: null,
 			provSources: [],
 			provDerivations: [],
 			//Provenance index fields
@@ -92,7 +95,10 @@ define(['jquery', 'underscore', 'backbone'],
 			this.selected = !this.get('selected');
 		},
 
-		//Returns a plain-english version of the general format - either image, program, metadata, PDF, annotation or data
+		/**
+    * Returns a plain-english version of the general format - either image, program, metadata, PDF, annotation or data
+    * @return {string}
+    */
 		getType: function(){
 			//The list of formatIds that are images
 			var imageIds = ["image/gif",
@@ -105,6 +111,8 @@ define(['jquery', 'underscore', 'backbone'],
 			//The list of formatIds that are images
 			var pdfIds = ["application/pdf"];
 			var annotationIds = ["http://docs.annotatorjs.org/en/v1.2.x/annotation-format.html"];
+      var collectionIds = ["https://purl.dataone.org/collections-1.0.0"];
+      var portalIds = ["https://purl.dataone.org/portals-1.0.0"];
 
 			//Determine the type via provONE
 			var instanceOfClass = this.get("prov_instanceOfClass");
@@ -121,6 +129,8 @@ define(['jquery', 'underscore', 'backbone'],
 			}
 
 			//Determine the type via file format
+      if(_.contains(collectionIds, this.get("formatId"))) return "collection";
+      if(_.contains(portalIds, this.get("formatId"))) return "portal";
 			if(this.get("formatType") == "METADATA") return "metadata";
 			if(_.contains(imageIds, this.get("formatId"))) return "image";
 			if(_.contains(pdfIds, this.get("formatId")))   return "PDF";
@@ -172,7 +182,9 @@ define(['jquery', 'underscore', 'backbone'],
 				"eml://ecoinformatics.org/eml-2.1.0" : "EML v2.1.0",
 				"eml://ecoinformatics.org/eml-2.1.1" : "EML v2.1.1",
 				"eml://ecoinformatics.org/eml-2.0.1" : "EML v2.0.1",
-				"eml://ecoinformatics.org/eml-2.0.0" : "EML v2.0.0"
+				"eml://ecoinformatics.org/eml-2.0.0" : "EML v2.0.0",
+				"https://eml.ecoinformatics.org/eml-2.2.0" : "EML v2.2.0",
+
 			}
 
 			return formatMap[this.get("formatId")] || this.get("formatId");
@@ -193,7 +205,8 @@ define(['jquery', 'underscore', 'backbone'],
 		 */
 		isDOI: function(customString) {
 			var DOI_PREFIXES = ["doi:10.", "http://dx.doi.org/10.", "http://doi.org/10.", "http://doi.org/doi:10.",
-				"https://dx.doi.org/10.", "https://doi.org/10.", "https://doi.org/doi:10."];
+				"https://dx.doi.org/10.", "https://doi.org/10.", "https://doi.org/doi:10."],
+				  DOI_REGEX = new RegExp(/^10.\d{4,9}\/[-._;()/:A-Z0-9]+$/i);;
 
 			//If a custom string is given, then check that instead of the seriesId and id from the model
 			if( typeof customString == "string" ){
@@ -201,16 +214,29 @@ define(['jquery', 'underscore', 'backbone'],
 					if (customString.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
 						return true;
 				}
+
+				//If there is no DOI prefix, check for a DOI without the prefix using a regular expression
+				if( DOI_REGEX.test(customString) ){
+					return true;
+				}
+
 			}
+			else{
+				var seriesId = this.get("seriesId"),
+						pid      = this.get("id");
 
-			var seriesId = this.get("seriesId"),
-			    pid      = this.get("id");
+				for (var i=0; i < DOI_PREFIXES.length; i++) {
+					if (seriesId && seriesId.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+						return true;
+					else if (pid && pid.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+						return true;
+				}
 
-			for (var i=0; i < DOI_PREFIXES.length; i++) {
-				if (seriesId && seriesId.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
+				//If there is no DOI prefix, check for a DOI without the prefix using a regular expression
+				if( DOI_REGEX.test(seriesId) || DOI_REGEX.test(pid) ){
 					return true;
-				else if (pid && pid.toLowerCase().indexOf(DOI_PREFIXES[i].toLowerCase()) == 0 )
-					return true;
+				}
+
 			}
 
 			return false;
@@ -252,22 +278,31 @@ define(['jquery', 'underscore', 'backbone'],
 			//Create an XHR
 			var xhr = new XMLHttpRequest();
 
+      //Open and send the request with the user's auth token
+      xhr.open('GET', url);
+
 			if(MetacatUI.appUserModel.get("loggedIn"))
 				xhr.withCredentials = true;
 
 			//When the XHR is ready, create a link with the raw data (Blob) and click the link to download
 			xhr.onload = function(){
 
+        if( this.status == 404 ){
+          this.onerror.call(this);
+          return;
+        }
+
 			   //Get the file name to save this file as
 			   var filename = xhr.getResponseHeader('Content-Disposition');
 
 			   if(!filename){
-				   filename = model.get("fileName") || model.get("title") || model.get("id") || "";
+				   filename = model.get("fileName") || model.get("title") || model.get("id") || "download";
 			   }
 			   else
 				   filename = filename.substring(filename.indexOf("filename=")+9).replace(/"/g, "");
 
-			   filename = filename.trim();
+         //Replace any whitespaces
+			   filename = filename.trim().replace(/ /g, "_");
 
 			   //For IE, we need to use the navigator API
 			   if (navigator && navigator.msSaveOrOpenBlob) {
@@ -284,25 +319,28 @@ define(['jquery', 'underscore', 'backbone'],
 				    a.style.display = 'none';
 				    document.body.appendChild(a);
 				    a.click();
-				    delete a;
+				    a.remove();
 			   }
 
 			    model.trigger("downloadComplete");
+
+          //Send this event to Google Analytics
+          if(MetacatUI.appModel.get("googleAnalyticsKey") && (typeof ga !== "undefined")){
+            ga("send", "event", "download", "Download DataONEObject", model.get("id"));
+          }
 			};
 
 			xhr.onerror = function(e){
-				var a = document.createElement('a');
-			    a.href = url;
+        model.trigger("downloadError");
 
-			    var filename = model.get("fileName") || model.get("title") || model.get("id") || "";
-				if(filename)
-					a.download = filename;
-
-			    a.style.display = 'none';
-			    document.body.appendChild(a);
-			    a.click();
-
-				model.trigger("downloadComplete");
+        //Send this exception to Google Analytics
+        if(MetacatUI.appModel.get("googleAnalyticsKey") && (typeof ga !== "undefined")){
+          ga("send", "exception", {
+            "exDescription": "Download DataONEObject error: " + (e || "") +
+              " | Id: " + model.get("id") + " | v. " + MetacatUI.metacatUIVersion,
+            "exFatal": true
+          });
+        }
 			};
 
 			xhr.onprogress = function(e){
@@ -312,8 +350,6 @@ define(['jquery', 'underscore', 'backbone'],
 			    }
 			};
 
-			//Open and send the request with the user's auth token
-			xhr.open('GET', url);
 			xhr.responseType = "blob";
 
 			if(MetacatUI.appUserModel.get("loggedIn"))
@@ -326,7 +362,7 @@ define(['jquery', 'underscore', 'backbone'],
 			var model = this;
 
 			if(!fields)
-				var fields = "abstract,id,seriesId,fileName,resourceMap,formatType,formatId,obsoletedBy,isDocumentedBy,documents,title,origin,keywords,attributeName,pubDate,eastBoundCoord,westBoundCoord,northBoundCoord,southBoundCoord,beginDate,endDate,dateUploaded,datasource,replicaMN,isAuthorized,isPublic,size,read_count_i,isService,serviceTitle,serviceEndpoint,serviceOutput,serviceDescription,serviceType";
+				var fields = "abstract,id,seriesId,fileName,resourceMap,formatType,formatId,obsoletedBy,isDocumentedBy,documents,title,origin,keywords,attributeName,pubDate,eastBoundCoord,westBoundCoord,northBoundCoord,southBoundCoord,beginDate,endDate,dateUploaded,archived,datasource,replicaMN,isAuthorized,isPublic,size,read_count_i,isService,serviceTitle,serviceEndpoint,serviceOutput,serviceDescription,serviceType";
 
 			var escapeSpecialChar = MetacatUI.appSearchModel.escapeSpecialChar;
 
@@ -342,8 +378,12 @@ define(['jquery', 'underscore', 'backbone'],
 			else if(this.get("seriesId") && !this.get("id"))
 				query += 'seriesId:"' + escapeSpecialChar(encodeURIComponent(this.get("id"))) + '" -obsoletedBy:*';
 
+			query += "&fl=" + fields + //Specify the fields to return
+			         "&wt=json&rows=1000" + //Get the results in JSON format and get 1000 rows
+			         "&archived=archived:*"; //Get archived or unarchived content
+
 			var requestSettings = {
-				url: MetacatUI.appModel.get("queryServiceUrl") + query + '&fl='+fields+'&wt=json&rows=1000',
+				url: MetacatUI.appModel.get("queryServiceUrl") + query,
 				type: "GET",
 				success: function(data, response, xhr){
 					var docs = data.response.docs;
@@ -444,6 +484,11 @@ define(['jquery', 'underscore', 'backbone'],
 				type: "GET",
 				dataType: "text",
 				success: function(data, response, xhr){
+
+          if( data && data.length ){
+            model.set("systemMetadata", data);
+          }
+
 					//Check if this is archvied
 					var archived = ($(data).find("archived").text() == "true");
 					model.set("archived", archived);
@@ -477,17 +522,27 @@ define(['jquery', 'underscore', 'backbone'],
 					//Trigger the sync event so the app knows we found the model info
 					model.trigger("sync");
 				},
-				error: function(){
-					model.notFound();
+				error: function(response){
+
+          //When the user is unauthorized to access this object, trigger a 401 error
+          if( response.status == 401 ){
+            model.set("notFound", true);
+            model.trigger("401");
+          }
+          //When the object doesn't exist, trigger a 404 error
+          else if( response.status == 404 ){
+            model.set("notFound", true);
+      			model.trigger("404");
+          }
+          //Other error codes trigger a generic error
+          else{
+            model.trigger("error");
+          }
+
 				}
 			}
 
 			$.ajax(_.extend(requestSettings, MetacatUI.appUserModel.createAjaxSettings()));
-		},
-
-		notFound: function(){
-			this.set({"notFound": true}, {silent: true});
-			this.trigger("404");
 		},
 
 		//Transgresses the obsolence chain until it finds the newest version that this user is authorized to read
@@ -527,9 +582,12 @@ define(['jquery', 'underscore', 'backbone'],
 
 				},
 				error: function(xhr){
-					//If this newer version isn't accessible, link to the latest version that is
-					if(xhr.status == "401")
-						model.set("newestVersion", newestVersion);
+					//If this newer version isn't found or accessible, then save the last
+          // accessible id as the newest version
+          if(xhr.status == 401 || xhr.status == 404 || xhr.status == "401" ||
+             xhr.status == "404"){
+            model.set("newestVersion", newestVersion);
+          }
 				}
 			}
 
@@ -634,6 +692,60 @@ define(['jquery', 'underscore', 'backbone'],
 		getOutputs: function(){
 			return this.get("prov_generated");
 		},
+
+    /*
+    * Uses the app configuration to check if this model's metrics should be hidden in the display
+    *
+    * @return {boolean}
+    */
+    hideMetrics: function(){
+
+      //If the AppModel is configured with cases of where to hide metrics,
+      if( typeof MetacatUI.appModel.get("hideMetricsWhen") == "object" && MetacatUI.appModel.get("hideMetricsWhen") ){
+
+        //Check for at least one match
+        return _.some( MetacatUI.appModel.get("hideMetricsWhen"), function(value, modelProperty){
+
+          //Get the value of this property from this model
+          var modelValue = this.get(modelProperty);
+
+          //Check for the presence of this model's value in the AppModel value
+          if( Array.isArray(value) && typeof modelValue == "string" ){
+            return _.contains(value, modelValue)
+          }
+          //Check for the presence of the AppModel's value in this model's value
+          else if( typeof value == "string" && Array.isArray(modelValue) ){
+            return _.contains(modelValue, value);
+          }
+          //Check for overlap of two arrays
+          else if( Array.isArray(value) && Array.isArray(modelValue) ){
+            return ( _.intersection(value, modelValue).length > 0 );
+          }
+          //If the AppModel value is a function, execute it
+          else if( typeof value == "function" ){
+            return value(modelValue);
+          }
+          //Otherwise, just check for equality
+          else{
+            return value === modelValue;
+          }
+
+        }, this);
+      }
+      else {
+        return false;
+      }
+    },
+
+    /**
+    * Creates a URL for viewing more information about this metadata
+    * @return {string}
+    */
+    createViewURL: function(){
+      return (this.getType() == "portal" || this.getType() == "collection") ?
+              MetacatUI.root + "/" + MetacatUI.appModel.get("portalTermPlural") + "/" + (this.get("label") || this.get("seriesId") || this.get("id")) :
+              MetacatUI.root + "/view/" + (this.get("seriesId") || this.get("id"));
+    },
 
 		/****************************/
 

@@ -12,7 +12,7 @@ define(['jquery', 'underscore', 'backbone', 'views/MetricModalView'],
         model: null,
 
         //Templates
-        metricButtonTemplate:  _.template( "<span class='metric-icon'> <i class='icon" + 
+        metricButtonTemplate:  _.template( "<span class='metric-icon'> <i class='icon" +
                             " <%=metricIcon%>'></i> </span>" +
                             "<span class='metric-name'> <%=metricName%> </span>" +
                             "<span class='metric-value'> <i class='icon metric-icon icon-spinner icon-spin'>" +
@@ -65,6 +65,9 @@ define(['jquery', 'underscore', 'backbone', 'views/MetricModalView'],
             // waiting for the fetch() call to succeed.
             this.listenTo(this.model, "sync", this.renderResults);
 
+            // in case when there is an error for the fetch call.
+            this.listenTo(this.model, "error", this.renderError);
+
             return this;
         },
 
@@ -76,19 +79,24 @@ define(['jquery', 'underscore', 'backbone', 'views/MetricModalView'],
                 var modalView = new MetricModalView({metricName: this.metricName, metricsModel: this.model});
                 modalView.render();
                 modalView.show();
+
+                //Send this event to Google Analytics
+                if(MetacatUI.appModel.get("googleAnalyticsKey") && (typeof ga !== "undefined")){
+                  ga("send", "event", "metrics", "Click metric", this.metricName);
+                }
             }
         },
 
         renderResults: function() {
             var metric = this.metricName
             var results = this.model.get(metric.toLowerCase());
-            // Check if the metric object exists in results obtained from the service 
+            // Check if the metric object exists in results obtained from the service
             // If it does, get its total value else set the total count to 0
 
             if (typeof results !== 'undefined') {
                 var total = 0
                 if (results.length > 0) {
-                    
+
                     if(metric == 'Citations') {
                         total = results.reduce(function(acc, val) { return acc + val; });
                         this.model.set('totalCitations', total);
@@ -102,7 +110,7 @@ define(['jquery', 'underscore', 'backbone', 'views/MetricModalView'],
                         this.model.set('totalDownloads', total);
                     }
                 }
-                
+
             } else {
                 if(metric == 'Citations') {
                     total = 0;
@@ -120,38 +128,22 @@ define(['jquery', 'underscore', 'backbone', 'views/MetricModalView'],
 
             // Replacing the metric total count with the spinning icon.
             this.$('.metric-value').addClass("badge");
-            this.$('.metric-value').text(this.numberAbbreviator(total, 1));
+            this.$('.metric-value').text(MetacatUI.appView.numberAbbreviator(total, 1));
         },
-        
-        numberAbbreviator: function(number, decimalPlaces) {
-            decimalPlaces = Math.pow(10,decimalPlaces);
-            var abbreviations = [ "K", "M", "B", "T" ];
 
-            // Go through the array backwards, so we do the largest first
-            for (var i=abbreviations.length-1; i>=0; i--) {
+        renderError: function() {
+            // Replacing the spinning icon with a question-mark
+            // when the metrics are not loaded
+            var iconEl = this.$('.metric-value').find('.metric-icon');
+            iconEl.removeClass('icon-spinner');
+            iconEl.removeClass('icon-spin');
+            iconEl.addClass("icon-exclamation-sign more-info");
 
-                // Convert array index to "1000", "1000000", etc
-                var size = Math.pow(10,(i+1)*3);
+            // Setting the error tool-tip
+            this.$el.removeAttr("data-title");
 
-                // If the number is bigger or equal do the abbreviation
-                if(size <= number) {
-
-                    // Here, we multiply by decimalPlaces, round, and then divide by decimalPlaces.
-                    // This gives us nice rounding to a particular decimal place.
-                    number = Math.round(number*decimalPlaces/size)/decimalPlaces;
-
-                    // Handle special case where we round up to the next abbreviation
-                    if((number == 1000) && (i < abbreviations.length - 1)) {
-                        number = 1;
-                        i++;
-                    }
-
-                    // Add the letter for the abbreviation
-                    number += abbreviations[i];
-                    break;
-                }
-            }
-            return number;
+            this.$el.addClass("metrics-button-disabled");
+            this.$el.attr("data-title", "The number of " + this.metricName + " could not be retreived at this time.");
         }
 
     });

@@ -4,22 +4,35 @@ define(['jquery', 'underscore', 'backbone', 'views/SignInView', 'text!templates/
 	function($, _, Backbone, SignInView, NavbarTemplate) {
 	'use strict';
 
-	// Build the navbar view of the application
-	var NavbarView = Backbone.View.extend({
+	/**
+  * @class NavbarView
+  * @classdesc Build the navbar view of the application
+  * @extends Backbone.View
+  * @constructor
+  */
+	var NavbarView = Backbone.View.extend(
+    /** @lends NavbarView.prototype */ {
 
+    /**
+    * @type {string}
+    */
 		el: '#Navbar',
 
+    /**
+    * @type {Underscore.Template}
+    */
 		template: _.template(NavbarTemplate),
 
+    /**
+    * @type {object}
+    */
 		events: {
 						  'click #search_btn' : 'triggerSearch',
 					   'keypress #search_txt' : 'triggerOnEnter',
 			         'click .show-new-search' : 'resetSearch',
-			         'click .show-new-editor' : 'resetEditor',
-			 		 'click .dropdown-menu a' : 'hideDropdown',
-			 		 	    'click .dropdown' : 'hideDropdown',
-			 		 	'mouseover .dropdown' : 'showDropdown',
-			 		 	 'mouseout .dropdown' : 'hideDropdown',
+			 		 'click .dropdown-menu a' :  'hideDropdown',
+			 		 	'mouseenter .dropdown' : 'showDropdown',
+			 		 	 'mouseleave .dropdown' : 'hideDropdown',
 			 		 	'click #nav-trigger'  : 'showNav',
 			 		 		  'click .nav li' : 'showSubNav'
 		},
@@ -102,28 +115,31 @@ define(['jquery', 'underscore', 'backbone', 'views/SignInView', 'text!templates/
 			MetacatUI.appView.resetSearch();
 		},
 
-		resetEditor: function(e){
-			e.preventDefault();
-
-			//If we're currently on the editor view then refresh
-			if(MetacatUI.appView.currentView.type == "Editor")
-				MetacatUI.appView.showView(MetacatUI.appView.registryView);
-			//Otherwise, just navigate to it
-			else
-				MetacatUI.uiRouter.navigate("submit", { trigger: true });
-		},
-
-		hideDropdown: function(){
-			//Close the dropdown menu when a link is clicked
+		hideDropdown: function(e){
 			this.$('.dropdown-menu').addClass('hidden');
 			this.$('.dropdown').removeClass('open');
 		},
 
-		showDropdown: function(){
-			//Only show the dropdown menu on hover when not on mobile
-			if($(window).width() < 768) return;
-
+		showDropdown: function(e){
 			this.$('.dropdown-menu').removeClass('hidden');
+
+			// Prevent click events immediately following mouseenter events, otherwise
+			// toggleDropdown() is called right after showDropdown on touchscreen devices.
+			// (on touch screen, both mouseenter and click are called when user touches element)
+			this.$('.dropdown .dropdown-toggle').off('click');
+			var view = this;
+			setTimeout(function () {
+				view.$('.dropdown .dropdown-toggle').on('click', function(e){
+					view.toggleDropdown(e)
+				});
+			}, 10);
+		},
+
+		toggleDropdown: function(e){
+			// this.$(".navbar-inner").append(" TOGG: " + e.handleObj.origType)
+			// console.log(e);
+			this.$('.dropdown-menu').toggleClass('hidden');
+			this.$('.dropdown').removeClass('open');
 		},
 
 		showNav: function(){

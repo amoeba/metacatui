@@ -3,13 +3,18 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 	function($, _, Backbone, JWS, SearchModel, SearchResults) {
 	'use strict';
 
-	// User Model
-	// ------------------
-	var UserModel = Backbone.Model.extend({
+	/**
+  * @class UserModel
+  * @extends Backbone.Model
+  * @constructor
+  */
+	var UserModel = Backbone.Model.extend(
+    /** @lends UserModel.prototype */{
 		defaults: function(){
 			return{
 				type: "person", //assume this is a person unless we are told otherwise - other possible type is a "group"
-				checked: false, //Set to true when we have checked the status of this user
+				checked: false, //Is set to true when we have checked the account/subject info of this user
+        tokenChecked: false, //Is set to true when the uer auth token has been checked
 				basicUser: false, //Set to true to only query for basic info about this user - prevents sending queries for info that will never be displayed in the UI
 				lastName: null,
 				firstName: null,
@@ -30,11 +35,14 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 				isOwnerOf: [],
 				identities: [],
 				identitiesUsernames: [],
+        allIdentitiesAndGroups: [],
 				pending: [],
 				token: null,
 				expires: null,
 				timeoutId: null,
-				rawData: null
+				rawData: null,
+        portalQuota: -1,
+        isAuthorizedCreatePortal: null
 			}
 		},
 
@@ -180,10 +188,15 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 				});
 			}
 
+      var allSubjects = _.pluck( this.get("isMemberOf"), "groupId" );
+      allSubjects.push(this.get("username"));
+      allSubjects.push(this.get("identities"));
+
 			return {
 				isMemberOf: memberOf,
 				isOwnerOf: ownerOf,
 				identities: identities,
+        allIdentitiesAndGroups: allSubjects,
 				verified: verified,
 				username: username,
 				firstName: firstName,
@@ -208,23 +221,6 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 
 			//Only proceed if there is a username
 			if(!this.get("username")) return;
-
-				/*
-			//Check if this is an ORCID
-			if(this.isOrcid()){
-				//Get the person's info from their ORCID bio
-				appLookupModel.orcidGetBio({
-					userModel: this,
-					success: function(){
-						model.set("checked", true);
-					},
-					error: function(){
-						model.set("checked", true);
-					}
-				});
-				return;
-			}*/
-
 
 			//Get the user info using the DataONE API
 			var url = MetacatUI.appModel.get("accountsUrl") + encodeURIComponent(this.get("username"));
@@ -446,8 +442,6 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 
 					model.getToken();
 
-					//Direct to the Ldap sign in
-					//window.location = appModel.get("signInUrlLdap") + window.location.href;
 				},
 				error: function(){
 					/*if(error)
@@ -547,6 +541,7 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 				model.set('username', username);
 				model.set("token", token);
 				model.set("loggedIn", loggedIn);
+        model.set("tokenChecked", true);
 
 				model.getTokenExpiration(payload);
 
@@ -818,7 +813,7 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 				  }
 				}
 			}
-			
+
 			$.ajax(_.extend(requestSettings, MetacatUI.appUserModel.createAjaxSettings()));
 		},
 
@@ -884,6 +879,98 @@ define(['jquery', 'underscore', 'backbone', 'jws', 'models/Search', "collections
 				  }
 				}
 		},
+
+    /**
+    * Checks if this user has the quota to perform the given action
+    * @param {string} action - The action to be performed
+    * @param {string} customerGroup - The subject or identifier of the customer/membership group
+    * to use this quota against
+    */
+    checkQuota: function(action, customerGroup){
+
+      //Temporarily reset the quota so a trigger event is changed when the XHR is complete
+      this.set("portalQuota", -1, {silent: true});
+
+      //Start of temporary code
+      //TODO: Replace this function with real code once the quota service is working
+      this.set("portalQuota", 999);
+      return;
+      //End of temporary code
+
+      var model = this;
+
+      var requestSettings = {
+        url: "",
+        type: "GET",
+        success: function(data, textStatus, xhr) {
+          model.set("portalQuota", data.remainingQuota);
+        },
+        error: function(xhr, textStatus, errorThrown) {
+          model.set("portalQuota", 0);
+        }
+      }
+
+      $.ajax(_.extend(requestSettings, this.createAjaxSettings()));
+
+    },
+
+    /**
+    * Checks if the user has authorization to perform the given action.
+    */
+    isAuthorizedCreatePortal: function(){
+
+      //Reset the isAuthorized attribute silently so a change event is always triggered
+      this.set("isAuthorizedCreatePortal", null, {silent: true});
+
+      //If the user isn't logged in, set authorization to false
+      if( !this.get("loggedIn") ){
+        this.set("isAuthorizedCreatePortal", false);
+        return;
+      }
+
+      //If creating portals has bbeen disabled app-wide, then set to false
+      if( MetacatUI.appModel.get("enableCreatePortals") === false ){
+        this.set("isAuthorizedCreatePortal", false);
+        return;
+      }
+      //If creating portals has been limited to only certain subjects, check if this user is one of them
+      else if( MetacatUI.appModel.get("limitPortalsToSubjects").length ){
+        if( !this.get("allIdentitiesAndGroups").length ){
+          this.on("change:allIdentitiesAndGroups", this.isAuthorizedCreatePortal);
+          return;
+        }
+
+        //Find the subjects that have access to create portals. Could be specific users or groups.
+        var subjectsThatHaveAccess = _.intersection(MetacatUI.appModel.get("limitPortalsToSubjects"), this.get("allIdentitiesAndGroups"));
+        if( !subjectsThatHaveAccess.length ){
+          //If this user is not in the whitelist, set to false
+          this.set("isAuthorizedCreatePortal", false);
+        }
+        else{
+          //If this user is in the whitelist, set to true
+          this.set("isAuthorizedCreatePortal", true);
+        }
+        return;
+      }
+      //If anyone is allowed to create a portal, check if they have the quota to create a portal
+      else{
+        //Listen to the response from the quota check
+        this.once("change:portalQuota", function(){
+          //If the quota is at least 1, set to true
+          if( this.get("portalQuota") > 0 ){
+            this.set("isAuthorizedCreatePortal", true);
+          }
+          //If the quota is less than or equal to zero, set to false
+          else{
+            this.set("isAuthorizedCreatePortal", false);
+          }
+        });
+        //Check the quota
+        this.checkQuota("createPortal");
+        return;
+      }
+
+    },
 
 		reset: function(){
 			var defaults = _.omit(this.defaults(), ["searchModel", "searchResults"]);

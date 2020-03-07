@@ -15,7 +15,7 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 				fax: [],
 				email: [],
 				onlineUrl: [],
-				role: null,
+				roles: [],
 				references: null,
 				userId: [],
 				xmlID: null,
@@ -34,8 +34,7 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 
 			if(!this.get("xmlID"))
 				this.createID();
-
-			this.on("change:role", this.setType);
+			this.on("change:roles", this.setType);
 		},
 
 		/*
@@ -45,6 +44,7 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 		nodeNameMap: function(){
 			return {
 				"administrativearea"    : "administrativeArea",
+        "associatedparty"       : "associatedParty",
 				"deliverypoint"         : "deliveryPoint",
 				"electronicmailaddress" : "electronicMailAddress",
 				"givenname"             : "givenName",
@@ -72,7 +72,7 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 				modelJSON = {};
 
 			//Set the name
-			var person = $(objectDOM).children("individualname");
+			var person = $(objectDOM).children("individualname, individualName");
 
 			if(person.length)
 				modelJSON.individualName = this.parsePerson(person);
@@ -103,28 +103,35 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 			modelJSON.address = addressesJSON;
 
 			//Set the text fields
-			modelJSON.organizationName = $(objectDOM).children("organizationname").text() || null;
-			modelJSON.positionName     = $(objectDOM).children("positionname").text() || null;
-			modelJSON.role 			   = $(objectDOM).find("role").text() || null;
+			modelJSON.organizationName = $(objectDOM).children("organizationname, organizationName").text() || null;
+			modelJSON.positionName     = $(objectDOM).children("positionname, positionName").text() || null;
+      // roles
+      modelJSON.roles = [];
+      $(objectDOM).find("role").each(function(i,role){
+        modelJSON.roles.push($(role).text());
+      });
 
 			//Set the id attribute
 			modelJSON.xmlID = $(objectDOM).attr("id");
 
 			//Email - only set it on the JSON if it exists (we want to avoid an empty string value in the array)
-			if( $(objectDOM).children("electronicmailaddress").length ){
-				modelJSON.email = _.map($(objectDOM).children("electronicmailaddress"), function(email){
+			if( $(objectDOM).children("electronicmailaddress, electronicMailAddress").length ){
+				modelJSON.email = _.map($(objectDOM).children("electronicmailaddress, electronicMailAddress"), function(email){
 										return  $(email).text();
 								  });
 			}
 
 			//Online URL - only set it on the JSON if it exists (we want to avoid an empty string value in the array)
-			if( $(objectDOM).find("onlineurl").length ){
-				modelJSON.onlineUrl = [$(objectDOM).find("onlineurl").first().text()];
+			if( $(objectDOM).find("onlineurl, onlineUrl").length ){
+				// modelJSON.onlineUrl = [$(objectDOM).find("onlineurl, onlineUrl").first().text()];
+				modelJSON.onlineUrl = $(objectDOM).find("onlineurl, onlineUrl").map(function(i,v) {
+					return $(v).text();
+				}).get();
 			}
 
 			//User ID - only set it on the JSON if it exists (we want to avoid an empty string value in the array)
-			if( $(objectDOM).find("userid").length ){
-				modelJSON.userId = [$(objectDOM).find("userid").first().text()];
+			if( $(objectDOM).find("userid, userId").length ){
+				modelJSON.userId = [$(objectDOM).find("userid, userId").first().text()];
 			}
 
 			return modelJSON;
@@ -143,8 +150,8 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 					surName: "",
 					salutation: []
 				},
-				givenName  = $(personXML).find("givenname"),
-				surName     = $(personXML).find("surname"),
+				givenName   = $(personXML).find("givenname, givenName"),
+				surName     = $(personXML).find("surname, surName"),
 				salutations = $(personXML).find("salutation");
 
 			//Concatenate all the given names into one, for now
@@ -170,10 +177,10 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 
 		parseAddress: function(addressXML){
 			var address    = {},
-				delPoint   = $(addressXML).find("deliverypoint"),
+				delPoint   = $(addressXML).find("deliverypoint, deliveryPoint"),
 				city       = $(addressXML).find("city"),
-				adminArea  = $(addressXML).find("administrativearea"),
-				postalCode = $(addressXML).find("postalcode"),
+				adminArea  = $(addressXML).find("administrativearea, administrativeArea"),
+				postalCode = $(addressXML).find("postalcode, postalCode"),
 				country    = $(addressXML).find("country");
 
 			address.city               = city.length? city.text() : "";
@@ -268,7 +275,12 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 				 //Given name
 				 if(!Array.isArray(name.givenName) && name.givenName) name.givenName = [name.givenName];
 				 _.each(name.givenName, function(givenName) {
-					 $(nameNode).append("<givenname>" + givenName + "</givenname>");
+
+          //If there is a given name string, create a givenName node
+          if(typeof givenName == "string" && givenName){
+					  $(nameNode).append("<givenname>" + givenName + "</givenname>");
+          }
+
 				 });
 
 				 // surname
@@ -560,17 +572,23 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 				$(objectDOM).find("role").remove();
 			}
 			//Otherwise, change the value of the role element
-			else{
-				//If for some reason there is no role, create a default role
-				if( !this.get("role") )
-					var role = "Associated Party";
-				else
-					var role = this.get("role");
+			else {
+				// If for some reason there is no role, create a default role
+				if( !this.get("roles").length ){
+          var roles = ["Associated Party"];
+        } else {
+          var roles = this.get("roles");
+        }
+        _.each(roles, function(role, i){
+          var roleSerialized = $(objectDOM).find("role");
+          if(roleSerialized.length){
+            $(roleSerialized[i]).text(role)
+          } else {
+            roleSerialized = $(document.createElement("role")).text(role);
+          	this.getEMLPosition(objectDOM, "role").after( roleSerialized );
+          }
+        }, this);
 
-				if($(objectDOM).find("role").length)
-					$(objectDOM).find("role").text(role);
-				else
-					this.getEMLPosition(objectDOM, "role").after( $(document.createElement("role")).text(role) );
 			}
 
 			//XML id attribute
@@ -696,8 +714,11 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
 		},
 
 		setType: function(){
-			if(this.get("role") && !this.get("type"))
-				this.set("type", "associatedParty");
+      if(this.get("roles")){
+        if(this.get("roles").length && !this.get("type")){
+          this.set("type", "associatedParty");
+        }
+      }
 		},
 
 		trickleUpChange: function(){
@@ -813,7 +834,6 @@ define(["jquery", "underscore", "models/NestedModel", "models/DataONEObject"],
             modelValues.address[i].deliveryPoint = modelValues.address[i].deliveryPoint.slice(0);
         });
       }
-
       return modelValues;
     },
 

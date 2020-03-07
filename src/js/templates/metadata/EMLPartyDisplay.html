@@ -1,0 +1,43 @@
+
+<div class="span6 eml-party"> <!--style="border: solid 1px #6c757d">-->
+    <div>
+      <% if(individualName){ %>
+        <span class="name">
+          <%=individualName.salutation.join(', ')%>
+          <%=individualName.givenName.join(' ')%>
+          <%=individualName.surName%>
+        </span>
+        <br/>
+      <% } %>
+      <% if(positionName){ %>
+        <span class="position">
+          <%=positionName%>
+        </span>
+        <br/>
+      <% } %>
+      <% if(organizationName){ %>
+        <span class="organization">
+          <%=organizationName%>
+        </span>
+        <br/>
+      <% } %>
+      <% if(urlLink.length){ %>
+        <span class="url">
+          <%=urlLink.join(' / ')%> <br>
+        </span>
+      <% } %>
+      <% if(email || phone){ %>
+        <span class="email phone">
+          <% if(email){ %>
+            <a href="mailto:<%=email%>"><%=email%></a>
+          <% } %>
+          <% if (email.length && phone.length) {%> / <%}%>
+          <%=phone%>
+        </span>
+      <% } %>
+      <% if(orcids){ %>
+        <br/>
+        <%=orcids%>
+      <% } %>
+    </div>
+</div>

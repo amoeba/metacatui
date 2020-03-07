@@ -1,0 +1,12 @@
+<label>
+  <% if(icon){
+       print('<i class="icon icon-on-left icon-' + icon + '"></i>');
+     } %>
+  <%=label%>
+</label>
+<div class="filter-input-contain input-append">
+  <input type="text" value="" placeholder="<%=placeholder || label%>"></input>
+  <button class="btn">
+    <i class="icon icon-search"></i>
+  </button>
+</div>

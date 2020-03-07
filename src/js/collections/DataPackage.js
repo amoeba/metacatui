@@ -1,7 +1,7 @@
 ﻿/* global define */
 "use strict";
 
-define(['jquery', 'underscore', 'localforage', 'backbone', 'rdflib', "uuid", "md5",
+define(['jquery', 'underscore', 'backbone', 'localforage', 'rdflib', "uuid", "md5",
         'collections/SolrResults',
         'models/filters/Filter',
         'models/DataONEObject', 'models/metadata/ScienceMetadata', 'models/metadata/eml211/EML211'],
